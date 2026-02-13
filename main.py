@@ -53,13 +53,6 @@ vegetable_info = {
         "benefit2": "Improves immunity"
     },
 
-    "Pumpkin": {
-        "calories": "26 kcal",
-        "nutrient": "Vitamin A, Beta-carotene",
-        "benefit1": "Good for eyes",
-        "benefit2": "Supports heart health"
-    },
-
     "Eggplant": {
         "calories": "25 kcal",
         "nutrient": "Fiber, Antioxidants",
@@ -103,7 +96,7 @@ while True:
     frame = cv2.flip(frame, 1)
     height, width, _ = frame.shape
 
-    # Center Box
+    # ROI box
     box_w = 400
     box_h = 400
     start_x = width // 2 - box_w // 2
@@ -123,32 +116,36 @@ while True:
     box_data = None
     roi_area = box_w * box_h
 
-    # ------------------ COLOR RANGES ------------------
+    # ------------------ COLOR MASKS ------------------
 
-    # Brown (Potato)
     mask_brown = cv2.inRange(hsv, np.array([10,60,20]), np.array([25,255,180]))
 
-    # Red (Tomato & Red Chili)
     mask_red = cv2.inRange(hsv, np.array([0,100,80]), np.array([10,255,255])) + \
                cv2.inRange(hsv, np.array([160,100,80]), np.array([179,255,255]))
 
-    # Orange (Carrot & Pumpkin)
     mask_orange = cv2.inRange(hsv, np.array([8,150,120]), np.array([25,255,255]))
 
-    # Green (Cucumber, Ladyfinger, Green Chili, Lettuce)
     mask_green = cv2.inRange(hsv, np.array([35,80,60]), np.array([85,255,255]))
 
-    # Purple (Eggplant)
     mask_purple = cv2.inRange(hsv, np.array([125,50,50]), np.array([155,255,255]))
 
-    # Light Green (Cabbage)
     mask_light_green = cv2.inRange(hsv, np.array([40,40,80]), np.array([75,200,255]))
 
-    # Clean noise
-    masks = [mask_brown, mask_red, mask_orange, mask_green, mask_purple, mask_light_green]
+    # Myanmar Pumpkin (dark green)
+    mask_pumpkin_mm = cv2.inRange(
+        hsv,
+        np.array([35, 40, 40]),
+        np.array([75, 200, 200])
+    )
+
+    masks = [mask_brown, mask_red, mask_orange,
+             mask_green, mask_purple,
+             mask_light_green, mask_pumpkin_mm]
+
     masks = [cv2.morphologyEx(m, cv2.MORPH_OPEN, kernel) for m in masks]
 
-    # Detection function
+    # ------------------ DETECTION FUNCTION ------------------
+
     def detect(mask):
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         for cnt in contours:
@@ -180,7 +177,7 @@ while True:
             detected_name = "Tomato"
             box_data = (x_, y_, w_, h_)
 
-    # Chili (red or green long shape)
+    # Chili (long red or green)
     if not detected:
         area, cir, ar, x_, y_, w_, h_ = detect(mask_red | mask_green)
         if area and ar > 2.5:
@@ -194,14 +191,6 @@ while True:
         if area and ar > 2.5:
             detected = True
             detected_name = "Carrot"
-            box_data = (x_, y_, w_, h_)
-
-    # Pumpkin
-    if not detected:
-        area, cir, ar, x_, y_, w_, h_ = detect(mask_orange)
-        if area and cir > 0.6 and 0.8 < ar < 1.3:
-            detected = True
-            detected_name = "Pumpkin"
             box_data = (x_, y_, w_, h_)
 
     # Eggplant
@@ -243,6 +232,7 @@ while True:
     # ------------------ DRAW RESULT ------------------
 
     if stable_count >= CONFIRM_FRAMES and box_data:
+
         x_, y_, w_, h_ = box_data
         x = x_ + start_x
         y = y_ + start_y
@@ -250,7 +240,11 @@ while True:
         cv2.rectangle(frame, (x,y), (x+w_,y+h_), (0,215,255), 3)
 
         panel_y = y - 150 if y - 150 > 0 else y + h_
-        cv2.rectangle(frame, (x, panel_y), (x+380, panel_y+140), (0,215,255), -1)
+
+        cv2.rectangle(frame,
+                      (x, panel_y),
+                      (x+380, panel_y+140),
+                      (0,215,255), -1)
 
         info = vegetable_info.get(stable_name)
 
@@ -281,6 +275,7 @@ while True:
                 0.9, (0,255,0), 2)
 
     cv2.imshow("Smart Scan", frame)
+    cv2.imshow("Red Mask", mask_red)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break

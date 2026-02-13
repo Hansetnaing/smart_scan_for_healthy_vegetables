@@ -1,7 +1,43 @@
 import cv2
 import numpy as np
 
+# ------------------ Vegetable Information ------------------
+
+vegetable_info = {
+    "Potato": {
+        "calories": "77 kcal (per 100g)",
+        "nutrient": "Vitamin C, B6, Potassium",
+        "benefit1": "Energy booster",
+        "benefit2": "Good for digestion"
+    },
+    "Tomato": {
+        "calories": "18 kcal (per 100g)",
+        "nutrient": "Vitamin A, C, Lycopene",
+        "benefit1": "Good for heart",
+        "benefit2": "Rich in antioxidants"
+    },
+    "Carrot": {
+        "calories": "41 kcal (per 100g)",
+        "nutrient": "Vitamin A (Beta-carotene)",
+        "benefit1": "Good for eyes",
+        "benefit2": "Boosts immunity"
+    },
+    "Cucumber": {
+        "calories": "16 kcal (per 100g)",
+        "nutrient": "Vitamin K, Magnesium",
+        "benefit1": "Hydrates body",
+        "benefit2": "Good for skin"
+    },
+    "Ladyfinger": {
+        "calories": "33 kcal (per 100g)",
+        "nutrient": "Fiber, Vitamin C, Folate",
+        "benefit1": "Improves digestion",
+        "benefit2": "Controls blood sugar"
+    }
+}
+
 # ------------------ Camera Setup ------------------
+
 cap = cv2.VideoCapture(0)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
@@ -12,6 +48,7 @@ cv2.resizeWindow("Smart Scan", 1280, 720)
 kernel = np.ones((5,5), np.uint8)
 
 # ------------------ Main Loop ------------------
+
 while True:
     ret, frame = cap.read()
     if not ret:
@@ -19,9 +56,8 @@ while True:
 
     frame = cv2.flip(frame, 1)
 
-    # ------------------ Scanning Area (Center Box) ------------------
+    # -------- Center Scanning Box --------
     height, width, _ = frame.shape
-
     box_w = 400
     box_h = 400
 
@@ -30,10 +66,8 @@ while True:
     end_x = start_x + box_w
     end_y = start_y + box_h
 
-    # Draw white border
     cv2.rectangle(frame, (start_x, start_y), (end_x, end_y), (255,255,255), 2)
 
-    # Crop ROI
     roi = frame[start_y:end_y, start_x:end_x]
 
     blurred = cv2.GaussianBlur(roi, (9,9), 0)
@@ -41,255 +75,130 @@ while True:
 
     detected = False
     detected_name = ""
+    roi_area = box_w * box_h
 
-    # ------------------ Color Ranges ------------------
+    # -------- Color Ranges --------
 
     # Potato (Brown)
     lower_brown = np.array([10, 60, 20])
     upper_brown = np.array([25, 255, 180])
     mask_brown = cv2.inRange(hsv, lower_brown, upper_brown)
 
-    # Tomato (Red - 2 ranges)
+    # Tomato (Red)
     lower_red1 = np.array([0, 120, 70])
     upper_red1 = np.array([10, 255, 255])
     lower_red2 = np.array([160, 120, 70])
     upper_red2 = np.array([179, 255, 255])
-
-    mask_red1 = cv2.inRange(hsv, lower_red1, upper_red1)
-    mask_red2 = cv2.inRange(hsv, lower_red2, upper_red2)
-    mask_red = mask_red1 + mask_red2
-
-    # Garlic (White / Cream - stricter)
-    lower_garlic = np.array([0, 10, 150])
-    upper_garlic = np.array([40, 120, 255])
-
-    mask_garlic = cv2.inRange(hsv, lower_garlic, upper_garlic)
+    mask_red = cv2.inRange(hsv, lower_red1, upper_red1) + \
+               cv2.inRange(hsv, lower_red2, upper_red2)
 
     # Carrot (Orange)
     lower_carrot = np.array([8, 150, 120])
     upper_carrot = np.array([18, 255, 255])
-
     mask_carrot = cv2.inRange(hsv, lower_carrot, upper_carrot)
-    mask_carrot = cv2.morphologyEx(mask_carrot, cv2.MORPH_CLOSE, kernel)
-    mask_carrot = cv2.morphologyEx(mask_carrot, cv2.MORPH_OPEN, kernel)
+
+    # Green (Cucumber & Ladyfinger)
+    lower_green = np.array([35, 80, 60])
+    upper_green = np.array([85, 255, 255])
+    mask_green = cv2.inRange(hsv, lower_green, upper_green)
 
     # Clean masks
-    mask_brown = cv2.morphologyEx(mask_brown, cv2.MORPH_CLOSE, kernel)
     mask_brown = cv2.morphologyEx(mask_brown, cv2.MORPH_OPEN, kernel)
-
-    mask_red = cv2.morphologyEx(mask_red, cv2.MORPH_CLOSE, kernel)
     mask_red = cv2.morphologyEx(mask_red, cv2.MORPH_OPEN, kernel)
+    mask_carrot = cv2.morphologyEx(mask_carrot, cv2.MORPH_OPEN, kernel)
+    mask_green = cv2.morphologyEx(mask_green, cv2.MORPH_OPEN, kernel)
 
-    mask_garlic = cv2.morphologyEx(mask_garlic, cv2.MORPH_CLOSE, kernel)
-    mask_garlic = cv2.morphologyEx(mask_garlic, cv2.MORPH_OPEN, kernel)
+    # -------- Detection --------
 
-    roi_area = box_w * box_h
-
-    # ------------------ Potato Detection ------------------
-    contours_brown, _ = cv2.findContours(mask_brown, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    for cnt in contours_brown:
-        area = cv2.contourArea(cnt)
-        if 10000 < area < roi_area * 0.8:
-
-            perimeter = cv2.arcLength(cnt, True)
-            if perimeter == 0:
-                continue
-
-            circularity = 4 * np.pi * area / (perimeter * perimeter)
-            x, y, w, h = cv2.boundingRect(cnt)
-
-            aspect_ratio = float(w) / h
-
-            if 0.6 < aspect_ratio < 1.4 and 0.45 < circularity < 0.85:
-                x = x + start_x
-                y = y + start_y
-                detected = True
-                detected_name = "Potato"
-                break
-
-    # ------------------ Tomato Detection ------------------
-    if not detected:
-        contours_red, _ = cv2.findContours(mask_red, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-        for cnt in contours_red:
+    def detect(mask):
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        for cnt in contours:
             area = cv2.contourArea(cnt)
-            if 10000 < area < roi_area * 0.8:
-
-                perimeter = cv2.arcLength(cnt, True)
-                if perimeter == 0:
-                    continue
-
-                circularity = 4 * np.pi * area / (perimeter * perimeter)
-                x, y, w, h = cv2.boundingRect(cnt)
-
-                hull = cv2.convexHull(cnt)
-                hull_area = cv2.contourArea(hull)
-                if hull_area == 0:
-                    continue
-
-                solidity = float(area) / hull_area
-                aspect_ratio = float(w) / h
-
-                if 0.75 < aspect_ratio < 1.3 and circularity > 0.65 and solidity > 0.85:
-                    x = x + start_x
-                    y = y + start_y
-                    detected = True
-                    detected_name = "Tomato"
-                    break
-
-    # ------------------ Garlic Detection ------------------
-    if not detected:
-        contours_garlic, _ = cv2.findContours(mask_garlic, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-        for cnt in contours_garlic:
-            area = cv2.contourArea(cnt)
-            if 5000 < area < roi_area * 0.8:
-
-                perimeter = cv2.arcLength(cnt, True)
-                if perimeter == 0:
-                    continue
-
-                circularity = 4 * np.pi * area / (perimeter * perimeter)
-                x, y, w, h = cv2.boundingRect(cnt)
-
-                # Prevent border touching
-                if x <= 5 or y <= 5 or x+w >= box_w-5 or y+h >= box_h-5:
-                    continue
-
-                aspect_ratio = float(w) / h
-
-                if 0.6 < aspect_ratio < 1.4 and circularity > 0.5:
-                    x = x + start_x
-                    y = y + start_y
-                    detected = True
-                    detected_name = "Garlic"
-                    break
-
-    # ------------------ Carrot Detection ------------------
-    if not detected:
-        contours_carrot, _ = cv2.findContours(mask_carrot, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-        for cnt in contours_carrot:
-            area = cv2.contourArea(cnt)
-
             if 8000 < area < roi_area * 0.9:
-
                 perimeter = cv2.arcLength(cnt, True)
                 if perimeter == 0:
                     continue
-
                 circularity = 4 * np.pi * area / (perimeter * perimeter)
-                x, y, w, h = cv2.boundingRect(cnt)
+                x_, y_, w_, h_ = cv2.boundingRect(cnt)
+                aspect_ratio = float(w_) / h_
 
-                aspect_ratio = float(w) / h
+                return area, circularity, aspect_ratio, x_, y_, w_, h_
+        return None, None, None, None, None, None, None
 
-                # Solidity check
-                hull = cv2.convexHull(cnt)
-                hull_area = cv2.contourArea(hull)
-                if hull_area == 0:
-                    continue
+    # Potato
+    area, cir, ar, x_, y_, w_, h_ = detect(mask_brown)
+    if area and 0.6 < ar < 1.4 and 0.45 < cir < 0.85:
+        detected = True
+        detected_name = "Potato"
 
-                solidity = float(area) / hull_area
+    # Tomato
+    if not detected:
+        area, cir, ar, x_, y_, w_, h_ = detect(mask_red)
+        if area and 0.75 < ar < 1.3 and cir > 0.65:
+            detected = True
+            detected_name = "Tomato"
 
-                # Carrot rules
-                if (aspect_ratio > 2.0 or aspect_ratio < 0.5) and \
-                        circularity < 0.6 and \
-                        solidity > 0.85 and \
-                        max(w, h) > 120:
-                    x = x + start_x
-                    y = y + start_y
-                    detected = True
-                    detected_name = "Carrot"
-                    break
+    # Carrot
+    if not detected:
+        area, cir, ar, x_, y_, w_, h_ = detect(mask_carrot)
+        if area and (ar > 2.0 or ar < 0.5):
+            detected = True
+            detected_name = "Carrot"
 
-    # ------------------ UI Section ------------------
+    # Green (Cucumber / Ladyfinger)
+    if not detected:
+        area, cir, ar, x_, y_, w_, h_ = detect(mask_green)
+        if area and (ar > 2.0 or ar < 0.5):
+            if area > 20000:
+                detected_name = "Cucumber"
+            else:
+                detected_name = "Ladyfinger"
+            detected = True
+
+    # -------- Draw Result --------
     if detected:
+
+        x = x_ + start_x
+        y = y_ + start_y
+        w = w_
+        h = h_
 
         cv2.rectangle(frame, (x,y), (x+w,y+h), (0,215,255), 3)
 
         panel_x1 = x
-        panel_y1 = y - 140 if y - 140 > 0 else y + h
-        panel_x2 = x + 320
-        panel_y2 = panel_y1 + 130
+        panel_y1 = y - 150 if y - 150 > 0 else y + h
 
-        cv2.rectangle(frame, (panel_x1, panel_y1),
-                      (panel_x2, panel_y2),
+        cv2.rectangle(frame,
+                      (panel_x1, panel_y1),
+                      (panel_x1+350, panel_y1+140),
                       (0,215,255), -1)
 
+        info = vegetable_info.get(detected_name)
+
         cv2.putText(frame, detected_name.upper(),
-                    (panel_x1 + 10, panel_y1 + 30),
+                    (panel_x1+10, panel_y1+30),
                     cv2.FONT_HERSHEY_SIMPLEX,
-                    0.9, (0,0,0), 2)
+                    0.8, (0,0,0), 2)
 
-        if detected_name == "Potato":
-            cv2.putText(frame, "Calories : 77 kcal",
-                        (panel_x1 + 10, panel_y1 + 55),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.5, (0,0,0), 1)
+        cv2.putText(frame, "Calories: " + info["calories"],
+                    (panel_x1+10, panel_y1+55),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5, (0,0,0), 1)
 
-            cv2.putText(frame, "Vitamin  : C, B6",
-                        (panel_x1 + 10, panel_y1 + 75),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.5, (0,0,0), 1)
+        cv2.putText(frame, "Nutrients: " + info["nutrient"],
+                    (panel_x1+10, panel_y1+75),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5, (0,0,0), 1)
 
-            cv2.putText(frame, "Benefits : Energy booster",
-                        (panel_x1 + 10, panel_y1 + 95),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.5, (0,0,0), 1)
+        cv2.putText(frame, "Benefit: " + info["benefit1"],
+                    (panel_x1+10, panel_y1+95),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5, (0,0,0), 1)
 
-        elif detected_name == "Tomato":
-            cv2.putText(frame, "Calories : 18 kcal",
-                        (panel_x1 + 10, panel_y1 + 55),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.5, (0,0,0), 1)
-
-            cv2.putText(frame, "Vitamin  : A, C",
-                        (panel_x1 + 10, panel_y1 + 75),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.5, (0,0,0), 1)
-
-            cv2.putText(frame, "Benefits : Good for heart",
-                        (panel_x1 + 10, panel_y1 + 95),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.5, (0,0,0), 1)
-
-        elif detected_name == "Garlic":
-            cv2.putText(frame, "Calories : 149 kcal",
-                        (panel_x1 + 10, panel_y1 + 55),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.5, (0,0,0), 1)
-
-            cv2.putText(frame, "Vitamin  : B6, C",
-                        (panel_x1 + 10, panel_y1 + 75),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.5, (0,0,0), 1)
-
-            cv2.putText(frame, "Benefits : Boost immunity",
-                        (panel_x1 + 10, panel_y1 + 95),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.5, (0,0,0), 1)
-
-        elif detected_name == "Carrot":
-            cv2.putText(frame, "Calories : 41 kcal",
-                        (panel_x1 + 10, panel_y1 + 55),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.5, (0, 0, 0), 1)
-
-            cv2.putText(frame, "Vitamin  : A (Beta-carotene)",
-                        (panel_x1 + 10, panel_y1 + 75),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.5, (0, 0, 0), 1)
-
-            cv2.putText(frame, "Benefits : Good for eyes",
-                        (panel_x1 + 10, panel_y1 + 95),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.5, (0, 0, 0), 1)
-
-            cv2.putText(frame, "Boosts immunity",
-                        (panel_x1 + 10, panel_y1 + 115),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.5, (0, 0, 0), 1)
+        cv2.putText(frame, info["benefit2"],
+                    (panel_x1+10, panel_y1+115),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5, (0,0,0), 1)
 
     cv2.putText(frame, "Smart Scan for Healthy Vegetables",
                 (20,40),
@@ -297,7 +206,6 @@ while True:
                 0.9, (0,255,0), 2)
 
     cv2.imshow("Smart Scan", frame)
-
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break

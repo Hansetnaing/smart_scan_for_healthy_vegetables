@@ -1,13 +1,13 @@
 import cv2
 import numpy as np
 
-# ------------------ Stability System ------------------
+# ------------------ Stability ------------------
 
 stable_name = ""
 stable_count = 0
-CONFIRM_FRAMES = 8
+CONFIRM_FRAMES = 5
 
-# ------------------ Vegetable Information ------------------
+# ------------------ Vegetable Info ------------------
 
 vegetable_info = {
 
@@ -25,13 +25,6 @@ vegetable_info = {
         "benefit2": "Rich in antioxidants"
     },
 
-    "Carrot": {
-        "calories": "41 kcal",
-        "nutrient": "Vitamin A",
-        "benefit1": "Good for eyes",
-        "benefit2": "Boosts immunity"
-    },
-
     "Cucumber": {
         "calories": "16 kcal",
         "nutrient": "Vitamin K",
@@ -44,49 +37,13 @@ vegetable_info = {
         "nutrient": "Fiber",
         "benefit1": "Improves digestion",
         "benefit2": "Controls blood sugar"
-    },
-
-    "Chili": {
-        "calories": "40 kcal",
-        "nutrient": "Vitamin C, Capsaicin",
-        "benefit1": "Boosts metabolism",
-        "benefit2": "Improves immunity"
-    },
-
-    "Eggplant": {
-        "calories": "25 kcal",
-        "nutrient": "Fiber, Antioxidants",
-        "benefit1": "Good for brain",
-        "benefit2": "Improves digestion"
-    },
-
-    "Cabbage": {
-        "calories": "25 kcal",
-        "nutrient": "Vitamin C, K",
-        "benefit1": "Boosts immunity",
-        "benefit2": "Good for gut health"
-    },
-
-    "Lettuce": {
-        "calories": "15 kcal",
-        "nutrient": "Vitamin A, K",
-        "benefit1": "Hydrates body",
-        "benefit2": "Good for skin"
     }
 }
 
-# ------------------ Camera Setup ------------------
+# ------------------ Camera ------------------
 
 cap = cv2.VideoCapture(0)
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-
-cv2.namedWindow("Smart Scan", cv2.WINDOW_NORMAL)
-cv2.resizeWindow("Smart Scan", 1280, 720)
-
 kernel = np.ones((5,5), np.uint8)
-
-# ------------------ Main Loop ------------------
 
 while True:
     ret, frame = cap.read()
@@ -94,130 +51,116 @@ while True:
         break
 
     frame = cv2.flip(frame, 1)
-    height, width, _ = frame.shape
+    h, w, _ = frame.shape
 
-    # ROI box
-    box_w = 400
-    box_h = 400
-    start_x = width // 2 - box_w // 2
-    start_y = height // 2 - box_h // 2
-    end_x = start_x + box_w
-    end_y = start_y + box_h
+    # ROI
+    box = 400
+    sx = w//2 - box//2
+    sy = h//2 - box//2
+    ex = sx + box
+    ey = sy + box
 
-    cv2.rectangle(frame, (start_x, start_y), (end_x, end_y), (255,255,255), 2)
+    cv2.rectangle(frame, (sx, sy), (ex, ey), (255,255,255), 2)
 
-    roi = frame[start_y:end_y, start_x:end_x]
+    roi = frame[sy:ey, sx:ex]
+    roi = cv2.convertScaleAbs(roi, alpha=1.1, beta=10)
 
-    blurred = cv2.GaussianBlur(roi, (9,9), 0)
-    hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
+    blur = cv2.GaussianBlur(roi, (9,9), 0)
+    hsv = cv2.cvtColor(blur, cv2.COLOR_BGR2HSV)
 
+    roi_area = box * box
     detected = False
     detected_name = ""
     box_data = None
-    roi_area = box_w * box_h
 
-    # ------------------ COLOR MASKS ------------------
+    # ------------------ MASKS ------------------
 
-    mask_brown = cv2.inRange(hsv, np.array([10,60,20]), np.array([25,255,180]))
+    mask_brown = cv2.inRange(
+        hsv,
+        np.array([8, 80, 30]),
+        np.array([25, 255, 200])
+    )
 
     mask_red = cv2.inRange(hsv, np.array([0,100,80]), np.array([10,255,255])) + \
                cv2.inRange(hsv, np.array([160,100,80]), np.array([179,255,255]))
 
-    mask_orange = cv2.inRange(hsv, np.array([8,150,120]), np.array([25,255,255]))
+    mask_yellow = cv2.inRange(hsv,
+                              np.array([20,80,80]),
+                              np.array([35,255,255]))
 
-    mask_green = cv2.inRange(hsv, np.array([35,80,60]), np.array([85,255,255]))
+    mask_orange = cv2.inRange(hsv,
+                              np.array([8,150,120]),
+                              np.array([25,255,255]))
 
-    mask_purple = cv2.inRange(hsv, np.array([125,50,50]), np.array([155,255,255]))
+    mask_green = cv2.inRange(hsv,
+                             np.array([30,50,40]),
+                             np.array([90,255,255]))
 
-    mask_light_green = cv2.inRange(hsv, np.array([40,40,80]), np.array([75,200,255]))
-
-    # Myanmar Pumpkin (dark green)
-    mask_pumpkin_mm = cv2.inRange(
-        hsv,
-        np.array([35, 40, 40]),
-        np.array([75, 200, 200])
-    )
-
-    masks = [mask_brown, mask_red, mask_orange,
-             mask_green, mask_purple,
-             mask_light_green, mask_pumpkin_mm]
+    masks = [mask_brown, mask_red, mask_yellow,
+             mask_orange, mask_green]
 
     masks = [cv2.morphologyEx(m, cv2.MORPH_OPEN, kernel) for m in masks]
 
-    # ------------------ DETECTION FUNCTION ------------------
+    # ------------------ DETECT FUNCTION ------------------
 
     def detect(mask):
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         for cnt in contours:
             area = cv2.contourArea(cnt)
-            if 8000 < area < roi_area * 0.9:
+            if 10000 < area < roi_area * 0.9:
+
                 peri = cv2.arcLength(cnt, True)
                 if peri == 0:
                     continue
+
                 circularity = 4 * np.pi * area / (peri * peri)
                 x_, y_, w_, h_ = cv2.boundingRect(cnt)
                 ar = float(w_) / h_
-                return area, circularity, ar, x_, y_, w_, h_
-        return None, None, None, None, None, None, None
 
-    # ------------------ DETECTION LOGIC ------------------
+                hull = cv2.convexHull(cnt)
+                hull_area = cv2.contourArea(hull)
+                if hull_area == 0:
+                    continue
+                solidity = float(area) / hull_area
+
+                return area, circularity, ar, solidity, x_, y_, w_, h_
+
+        return None, None, None, None, None, None, None, None
+
+    # ------------------ DETECTION ------------------
 
     # Potato
-    area, cir, ar, x_, y_, w_, h_ = detect(mask_brown)
-    if area and 0.6 < ar < 1.4:
+    area, cir, ar, sol, x_, y_, w_, h_ = detect(mask_brown)
+    if area and 0.6 < ar < 1.4 and 0.5 < cir < 0.85 and sol > 0.85:
         detected = True
         detected_name = "Potato"
         box_data = (x_, y_, w_, h_)
 
     # Tomato
     if not detected:
-        area, cir, ar, x_, y_, w_, h_ = detect(mask_red)
-        if area and cir > 0.65 and 0.8 < ar < 1.2:
+        area, cir, ar, sol, x_, y_, w_, h_ = detect(mask_red | mask_yellow | mask_orange)
+        if area and cir > 0.65:
             detected = True
             detected_name = "Tomato"
             box_data = (x_, y_, w_, h_)
 
-    # Chili (long red or green)
+    # Ladyfinger
     if not detected:
-        area, cir, ar, x_, y_, w_, h_ = detect(mask_red | mask_green)
-        if area and ar > 2.5:
+        area, cir, ar, sol, x_, y_, w_, h_ = detect(mask_green)
+        if area and ar > 2.8 and 0.7 < sol < 0.95:
             detected = True
-            detected_name = "Chili"
+            detected_name = "Ladyfinger"
             box_data = (x_, y_, w_, h_)
 
-    # Carrot
+    # Cucumber
     if not detected:
-        area, cir, ar, x_, y_, w_, h_ = detect(mask_orange)
-        if area and ar > 2.5:
+        area, cir, ar, sol, x_, y_, w_, h_ = detect(mask_green)
+        if area and 2.0 < ar < 4.0 and sol > 0.9:
             detected = True
-            detected_name = "Carrot"
+            detected_name = "Cucumber"
             box_data = (x_, y_, w_, h_)
 
-    # Eggplant
-    if not detected:
-        area, cir, ar, x_, y_, w_, h_ = detect(mask_purple)
-        if area and ar > 1.5:
-            detected = True
-            detected_name = "Eggplant"
-            box_data = (x_, y_, w_, h_)
-
-    # Cabbage
-    if not detected:
-        area, cir, ar, x_, y_, w_, h_ = detect(mask_light_green)
-        if area and cir > 0.7:
-            detected = True
-            detected_name = "Cabbage"
-            box_data = (x_, y_, w_, h_)
-
-    # Lettuce
-    if not detected:
-        area, cir, ar, x_, y_, w_, h_ = detect(mask_green)
-        if area and cir > 0.5:
-            detected = True
-            detected_name = "Lettuce"
-            box_data = (x_, y_, w_, h_)
-
-    # ------------------ STABILITY ------------------
+    # ------------------ Stability ------------------
 
     if detected:
         if detected_name == stable_name:
@@ -229,53 +172,51 @@ while True:
         stable_name = ""
         stable_count = 0
 
-    # ------------------ DRAW RESULT ------------------
+    # ------------------ Display Info ------------------
 
     if stable_count >= CONFIRM_FRAMES and box_data:
 
         x_, y_, w_, h_ = box_data
-        x = x_ + start_x
-        y = y_ + start_y
+        x = x_ + sx
+        y = y_ + sy
 
         cv2.rectangle(frame, (x,y), (x+w_,y+h_), (0,215,255), 3)
 
-        panel_y = y - 150 if y - 150 > 0 else y + h_
-
-        cv2.rectangle(frame,
-                      (x, panel_y),
-                      (x+380, panel_y+140),
-                      (0,215,255), -1)
-
         info = vegetable_info.get(stable_name)
 
+        panel_y = y - 140 if y - 140 > 0 else y + h_
+
+        cv2.rectangle(frame, (x, panel_y),
+                      (x+360, panel_y+120),
+                      (0,215,255), -1)
+
         cv2.putText(frame, stable_name.upper(),
-                    (x+10, panel_y+30),
+                    (x+10, panel_y+25),
                     cv2.FONT_HERSHEY_SIMPLEX,
-                    0.8, (0,0,0), 2)
+                    0.7, (0,0,0), 2)
 
         cv2.putText(frame, "Calories: " + info["calories"],
-                    (x+10, panel_y+55),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,0), 1)
+                    (x+10, panel_y+45),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5, (0,0,0), 1)
 
         cv2.putText(frame, "Nutrients: " + info["nutrient"],
-                    (x+10, panel_y+75),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,0), 1)
+                    (x+10, panel_y+65),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5, (0,0,0), 1)
 
-        cv2.putText(frame, "Benefit: " + info["benefit1"],
-                    (x+10, panel_y+95),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,0), 1)
+        cv2.putText(frame, info["benefit1"],
+                    (x+10, panel_y+85),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5, (0,0,0), 1)
 
         cv2.putText(frame, info["benefit2"],
-                    (x+10, panel_y+115),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,0), 1)
-
-    cv2.putText(frame, "Smart Scan for Healthy Vegetables",
-                (20,40),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.9, (0,255,0), 2)
+                    (x+10, panel_y+105),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5, (0,0,0), 1)
 
     cv2.imshow("Smart Scan", frame)
-    cv2.imshow("Red Mask", mask_red)
+    cv2.imshow("Brown",mask_brown)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break

@@ -65,6 +65,14 @@ while True:
 
     mask_garlic = cv2.inRange(hsv, lower_garlic, upper_garlic)
 
+    # Carrot (Orange)
+    lower_carrot = np.array([5, 120, 120])
+    upper_carrot = np.array([20, 255, 255])
+
+    mask_carrot = cv2.inRange(hsv, lower_carrot, upper_carrot)
+    mask_carrot = cv2.morphologyEx(mask_carrot, cv2.MORPH_CLOSE, kernel)
+    mask_carrot = cv2.morphologyEx(mask_carrot, cv2.MORPH_OPEN, kernel)
+
     # Clean masks
     mask_brown = cv2.morphologyEx(mask_brown, cv2.MORPH_CLOSE, kernel)
     mask_brown = cv2.morphologyEx(mask_brown, cv2.MORPH_OPEN, kernel)
@@ -136,7 +144,7 @@ while True:
 
         for cnt in contours_garlic:
             area = cv2.contourArea(cnt)
-            if 8000 < area < roi_area * 0.6:
+            if 5000 < area < roi_area * 0.8:
 
                 perimeter = cv2.arcLength(cnt, True)
                 if perimeter == 0:
@@ -156,6 +164,31 @@ while True:
                     y = y + start_y
                     detected = True
                     detected_name = "Garlic"
+                    break
+
+    # ------------------ Carrot Detection ------------------
+    if not detected:
+        contours_carrot, _ = cv2.findContours(mask_carrot, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        for cnt in contours_carrot:
+            area = cv2.contourArea(cnt)
+            if 8000 < area < roi_area * 0.9:
+
+                perimeter = cv2.arcLength(cnt, True)
+                if perimeter == 0:
+                    continue
+
+                circularity = 4 * np.pi * area / (perimeter * perimeter)
+                x, y, w, h = cv2.boundingRect(cnt)
+
+                aspect_ratio = float(w) / h
+
+                # Carrot is long shape
+                if aspect_ratio > 1.8 or aspect_ratio < 0.5:
+                    x = x + start_x
+                    y = y + start_y
+                    detected = True
+                    detected_name = "Carrot"
                     break
 
     # ------------------ UI Section ------------------
@@ -224,6 +257,27 @@ while True:
                         (panel_x1 + 10, panel_y1 + 95),
                         cv2.FONT_HERSHEY_SIMPLEX,
                         0.5, (0,0,0), 1)
+
+        elif detected_name == "Carrot":
+            cv2.putText(frame, "Calories : 41 kcal",
+                        (panel_x1 + 10, panel_y1 + 55),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5, (0, 0, 0), 1)
+
+            cv2.putText(frame, "Vitamin  : A (Beta-carotene)",
+                        (panel_x1 + 10, panel_y1 + 75),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5, (0, 0, 0), 1)
+
+            cv2.putText(frame, "Benefits : Good for eyes",
+                        (panel_x1 + 10, panel_y1 + 95),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5, (0, 0, 0), 1)
+
+            cv2.putText(frame, "Boosts immunity",
+                        (panel_x1 + 10, panel_y1 + 115),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5, (0, 0, 0), 1)
 
     cv2.putText(frame, "Smart Scan for Healthy Vegetables",
                 (20,40),

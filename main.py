@@ -66,8 +66,8 @@ while True:
     mask_garlic = cv2.inRange(hsv, lower_garlic, upper_garlic)
 
     # Carrot (Orange)
-    lower_carrot = np.array([5, 120, 120])
-    upper_carrot = np.array([20, 255, 255])
+    lower_carrot = np.array([8, 150, 120])
+    upper_carrot = np.array([18, 255, 255])
 
     mask_carrot = cv2.inRange(hsv, lower_carrot, upper_carrot)
     mask_carrot = cv2.morphologyEx(mask_carrot, cv2.MORPH_CLOSE, kernel)
@@ -172,6 +172,7 @@ while True:
 
         for cnt in contours_carrot:
             area = cv2.contourArea(cnt)
+
             if 8000 < area < roi_area * 0.9:
 
                 perimeter = cv2.arcLength(cnt, True)
@@ -183,8 +184,19 @@ while True:
 
                 aspect_ratio = float(w) / h
 
-                # Carrot is long shape
-                if aspect_ratio > 1.8 or aspect_ratio < 0.5:
+                # Solidity check
+                hull = cv2.convexHull(cnt)
+                hull_area = cv2.contourArea(hull)
+                if hull_area == 0:
+                    continue
+
+                solidity = float(area) / hull_area
+
+                # Carrot rules
+                if (aspect_ratio > 2.0 or aspect_ratio < 0.5) and \
+                        circularity < 0.6 and \
+                        solidity > 0.85 and \
+                        max(w, h) > 120:
                     x = x + start_x
                     y = y + start_y
                     detected = True
@@ -285,6 +297,7 @@ while True:
                 0.9, (0,255,0), 2)
 
     cv2.imshow("Smart Scan", frame)
+
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break

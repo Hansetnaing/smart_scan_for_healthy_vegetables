@@ -1,6 +1,12 @@
 import cv2
 import numpy as np
 
+# ------------------ Stability System ------------------
+
+stable_name = ""
+stable_count = 0
+CONFIRM_FRAMES = 8   # increased for better stability
+
 # ------------------ Vegetable Information ------------------
 
 vegetable_info = {
@@ -56,8 +62,9 @@ while True:
 
     frame = cv2.flip(frame, 1)
 
-    # -------- Center Scanning Box --------
     height, width, _ = frame.shape
+
+    # -------- Center ROI Box --------
     box_w = 400
     box_h = 400
 
@@ -75,26 +82,27 @@ while True:
 
     detected = False
     detected_name = ""
+    box_data = None
     roi_area = box_w * box_h
 
-    # -------- Color Ranges --------
+    # ------------------ Color Ranges ------------------
 
     # Potato (Brown)
     lower_brown = np.array([10, 60, 20])
     upper_brown = np.array([25, 255, 180])
     mask_brown = cv2.inRange(hsv, lower_brown, upper_brown)
 
-    # Tomato (Red)
-    lower_red1 = np.array([0, 120, 70])
+    # Tomato (Red) - improved
+    lower_red1 = np.array([0, 100, 80])
     upper_red1 = np.array([10, 255, 255])
-    lower_red2 = np.array([160, 120, 70])
+    lower_red2 = np.array([160, 100, 80])
     upper_red2 = np.array([179, 255, 255])
     mask_red = cv2.inRange(hsv, lower_red1, upper_red1) + \
                cv2.inRange(hsv, lower_red2, upper_red2)
 
     # Carrot (Orange)
     lower_carrot = np.array([8, 150, 120])
-    upper_carrot = np.array([18, 255, 255])
+    upper_carrot = np.array([20, 255, 255])
     mask_carrot = cv2.inRange(hsv, lower_carrot, upper_carrot)
 
     # Green (Cucumber & Ladyfinger)
@@ -102,13 +110,13 @@ while True:
     upper_green = np.array([85, 255, 255])
     mask_green = cv2.inRange(hsv, lower_green, upper_green)
 
-    # Clean masks
+    # Clean noise
     mask_brown = cv2.morphologyEx(mask_brown, cv2.MORPH_OPEN, kernel)
     mask_red = cv2.morphologyEx(mask_red, cv2.MORPH_OPEN, kernel)
     mask_carrot = cv2.morphologyEx(mask_carrot, cv2.MORPH_OPEN, kernel)
     mask_green = cv2.morphologyEx(mask_green, cv2.MORPH_OPEN, kernel)
 
-    # -------- Detection --------
+    # ------------------ Detection Function ------------------
 
     def detect(mask):
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -121,15 +129,17 @@ while True:
                 circularity = 4 * np.pi * area / (perimeter * perimeter)
                 x_, y_, w_, h_ = cv2.boundingRect(cnt)
                 aspect_ratio = float(w_) / h_
-
                 return area, circularity, aspect_ratio, x_, y_, w_, h_
         return None, None, None, None, None, None, None
+
+    # ------------------ Vegetable Detection ------------------
 
     # Potato
     area, cir, ar, x_, y_, w_, h_ = detect(mask_brown)
     if area and 0.6 < ar < 1.4 and 0.45 < cir < 0.85:
         detected = True
         detected_name = "Potato"
+        box_data = (x_, y_, w_, h_)
 
     # Tomato
     if not detected:
@@ -137,66 +147,81 @@ while True:
         if area and 0.75 < ar < 1.3 and cir > 0.65:
             detected = True
             detected_name = "Tomato"
+            box_data = (x_, y_, w_, h_)
 
-    # Carrot
+    # Carrot (stricter)
     if not detected:
         area, cir, ar, x_, y_, w_, h_ = detect(mask_carrot)
-        if area and (ar > 2.0 or ar < 0.5):
+        if area and ar > 2.5:
             detected = True
             detected_name = "Carrot"
+            box_data = (x_, y_, w_, h_)
 
     # Green (Cucumber / Ladyfinger)
     if not detected:
         area, cir, ar, x_, y_, w_, h_ = detect(mask_green)
-        if area and (ar > 2.0 or ar < 0.5):
+        if area and ar > 2.0:
+            detected = True
             if area > 20000:
                 detected_name = "Cucumber"
             else:
                 detected_name = "Ladyfinger"
-            detected = True
+            box_data = (x_, y_, w_, h_)
 
-    # -------- Draw Result --------
+    # ------------------ Stability Logic ------------------
+
     if detected:
+        if detected_name == stable_name:
+            stable_count += 1
+        else:
+            stable_name = detected_name
+            stable_count = 1
+    else:
+        stable_name = ""
+        stable_count = 0
+
+    # ------------------ Draw Result ------------------
+
+    if stable_count >= CONFIRM_FRAMES and box_data:
+
+        x_, y_, w_, h_ = box_data
 
         x = x_ + start_x
         y = y_ + start_y
-        w = w_
-        h = h_
 
-        cv2.rectangle(frame, (x,y), (x+w,y+h), (0,215,255), 3)
+        cv2.rectangle(frame, (x,y), (x+w_,y+h_), (0,215,255), 3)
 
-        panel_x1 = x
-        panel_y1 = y - 150 if y - 150 > 0 else y + h
+        panel_y = y - 150 if y - 150 > 0 else y + h_
 
         cv2.rectangle(frame,
-                      (panel_x1, panel_y1),
-                      (panel_x1+350, panel_y1+140),
+                      (x, panel_y),
+                      (x+360, panel_y+140),
                       (0,215,255), -1)
 
-        info = vegetable_info.get(detected_name)
+        info = vegetable_info.get(stable_name)
 
-        cv2.putText(frame, detected_name.upper(),
-                    (panel_x1+10, panel_y1+30),
+        cv2.putText(frame, stable_name.upper(),
+                    (x+10, panel_y+30),
                     cv2.FONT_HERSHEY_SIMPLEX,
                     0.8, (0,0,0), 2)
 
         cv2.putText(frame, "Calories: " + info["calories"],
-                    (panel_x1+10, panel_y1+55),
+                    (x+10, panel_y+55),
                     cv2.FONT_HERSHEY_SIMPLEX,
                     0.5, (0,0,0), 1)
 
         cv2.putText(frame, "Nutrients: " + info["nutrient"],
-                    (panel_x1+10, panel_y1+75),
+                    (x+10, panel_y+75),
                     cv2.FONT_HERSHEY_SIMPLEX,
                     0.5, (0,0,0), 1)
 
         cv2.putText(frame, "Benefit: " + info["benefit1"],
-                    (panel_x1+10, panel_y1+95),
+                    (x+10, panel_y+95),
                     cv2.FONT_HERSHEY_SIMPLEX,
                     0.5, (0,0,0), 1)
 
         cv2.putText(frame, info["benefit2"],
-                    (panel_x1+10, panel_y1+115),
+                    (x+10, panel_y+115),
                     cv2.FONT_HERSHEY_SIMPLEX,
                     0.5, (0,0,0), 1)
 

@@ -131,6 +131,8 @@ while True:
     def detect(mask):
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
+        best = None
+
         for cnt in contours:
             area = cv2.contourArea(cnt)
 
@@ -143,7 +145,16 @@ while True:
                 circularity = 4 * np.pi * area / (peri * peri)
 
                 x_, y_, w_, h_ = cv2.boundingRect(cnt)
-                ar = float(w_) / h_
+
+                # Use rotated rectangle so long vegetables are measured correctly
+                rect = cv2.minAreaRect(cnt)
+                rw, rh = rect[1]
+                if rw == 0 or rh == 0:
+                    continue
+
+                long_side = max(rw, rh)
+                short_side = min(rw, rh)
+                ar = long_side / short_side
 
                 hull = cv2.convexHull(cnt)
                 hull_area = cv2.contourArea(hull)
@@ -151,15 +162,39 @@ while True:
                     continue
 
                 solidity = float(area) / hull_area
+                extent = area / (w_ * h_)
+                thickness_ratio = short_side / long_side
 
-                return area, circularity, ar, solidity, x_, y_, w_, h_
+                current = {
+                    "area": area,
+                    "circularity": circularity,
+                    "ar": ar,
+                    "solidity": solidity,
+                    "extent": extent,
+                    "thickness_ratio": thickness_ratio,
+                    "x": x_,
+                    "y": y_,
+                    "w": w_,
+                    "h": h_
+                }
 
-        return None, None, None, None, None, None, None, None
+                # Keep strongest contour to reduce false detections from small blobs.
+                if best is None or area > best["area"]:
+                    best = current
+
+        if best:
+            return (
+                best["area"], best["circularity"], best["ar"], best["solidity"],
+                best["extent"], best["thickness_ratio"], best["x"], best["y"],
+                best["w"], best["h"]
+            )
+
+        return None, None, None, None, None, None, None, None, None, None
 
     # ------------------ DETECTION ------------------
 
     # Potato
-    area, cir, ar, sol, x_, y_, w_, h_ = detect(mask_brown)
+    area, cir, ar, sol, ext, thick, x_, y_, w_, h_ = detect(mask_brown)
     if area and 0.6 < ar < 1.4 and 0.45 < cir < 0.85:
         detected = True
         detected_name = "Potato"
@@ -167,7 +202,7 @@ while True:
 
     # Tomato
     if not detected:
-        area, cir, ar, sol, x_, y_, w_, h_ = detect(mask_red)
+        area, cir, ar, sol, ext, thick, x_, y_, w_, h_ = detect(mask_red)
         if area and cir > 0.70:
             detected = True
             detected_name = "Tomato"
@@ -175,7 +210,7 @@ while True:
 
     # Carrot
     if not detected:
-        area, cir, ar, sol, x_, y_, w_, h_ = detect(mask_orange)
+        area, cir, ar, sol, ext, thick, x_, y_, w_, h_ = detect(mask_orange)
         if area and ar > 3.0:
             detected = True
             detected_name = "Carrot"
@@ -183,7 +218,7 @@ while True:
 
     # Chili Red
     if not detected:
-        area, cir, ar, sol, x_, y_, w_, h_ = detect(mask_red)
+        area, cir, ar, sol, ext, thick, x_, y_, w_, h_ = detect(mask_red)
         if area and ar > 4.0:
             detected = True
             detected_name = "Chili Red"
@@ -191,33 +226,29 @@ while True:
 
     # -------- GREEN OBJECTS (REMADE LADYFINGER LOGIC) --------
     if not detected:
-        area, cir, ar, sol, x_, y_, w_, h_ = detect(mask_green)
+        area, cir, ar, sol, ext, thick, x_, y_, w_, h_ = detect(mask_green)
 
         if area:
-
-            extent = area / (w_ * h_)
-            thickness_ratio = min(w_, h_) / max(w_, h_)
-
             # Chili Green (very thin + very long)
-            if ar > 5.0 and thickness_ratio < 0.20:
+            if ar > 5.2 and thick < 0.19 and ext < 0.60 and sol > 0.80:
                 detected = True
                 detected_name = "Chili Green"
                 box_data = (x_, y_, w_, h_)
 
             # Lime (round object)
-            elif 0.75 < ar < 1.3 and cir > 0.72 and sol > 0.90:
+            elif ar < 1.35 and cir > 0.72 and sol > 0.90 and ext > 0.70:
                 detected = True
                 detected_name = "Lime"
                 box_data = (x_, y_, w_, h_)
 
             # Ladyfinger (long + medium thickness + high solidity)
-            elif 3.0 < ar <= 5.0 and 0.20 <= thickness_ratio <= 0.35 and sol > 0.85:
+            elif 3.2 < ar <= 5.4 and 0.18 <= thick <= 0.34 and sol > 0.86 and ext > 0.58:
                 detected = True
                 detected_name = "Ladyfinger"
                 box_data = (x_, y_, w_, h_)
 
             # Cucumber (shorter & thicker)
-            elif 1.8 < ar <= 3.0 and thickness_ratio > 0.35:
+            elif 1.9 < ar <= 3.3 and thick > 0.30 and ext > 0.60 and sol > 0.88:
                 detected = True
                 detected_name = "Cucumber"
                 box_data = (x_, y_, w_, h_)

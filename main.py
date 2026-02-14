@@ -291,6 +291,7 @@ while True:
     cv2.imshow("Green Mask", mask_green)
     cv2.imshow("Red Mask", mask_red)
     cv2.imshow("Orange Mask", mask_orange)
+    cv2.imshow("Brown ",mask_brown)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break

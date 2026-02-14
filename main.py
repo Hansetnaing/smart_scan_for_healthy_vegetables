@@ -189,37 +189,40 @@ while True:
             detected_name = "Chili Red"
             box_data = (x_, y_, w_, h_)
 
-    # -------- GREEN OBJECTS --------
+    # -------- GREEN OBJECTS (REMADE LADYFINGER LOGIC) --------
     if not detected:
         area, cir, ar, sol, x_, y_, w_, h_ = detect(mask_green)
 
         if area:
 
-            # Chili Green (very long)
-            if ar > 4.0:
+            extent = area / (w_ * h_)
+            thickness_ratio = min(w_, h_) / max(w_, h_)
+
+            # Chili Green (very thin + very long)
+            if ar > 5.0 and thickness_ratio < 0.20:
                 detected = True
                 detected_name = "Chili Green"
                 box_data = (x_, y_, w_, h_)
 
-            # Lime (round + solid)
-            elif 0.75 < ar < 1.35 and cir > 0.70 and sol > 0.90:
+            # Lime (round object)
+            elif 0.75 < ar < 1.3 and cir > 0.72 and sol > 0.90:
                 detected = True
                 detected_name = "Lime"
                 box_data = (x_, y_, w_, h_)
 
-            # Ladyfinger (medium long + sharp)
-            elif 2.8 < ar <= 4.0 and sol > 0.85:
+            # Ladyfinger (long + medium thickness + high solidity)
+            elif 3.0 < ar <= 5.0 and 0.20 <= thickness_ratio <= 0.35 and sol > 0.85:
                 detected = True
                 detected_name = "Ladyfinger"
                 box_data = (x_, y_, w_, h_)
 
-            # Cucumber (medium long)
-            elif 1.8 < ar <= 2.8 and sol > 0.92:
+            # Cucumber (shorter & thicker)
+            elif 1.8 < ar <= 3.0 and thickness_ratio > 0.35:
                 detected = True
                 detected_name = "Cucumber"
                 box_data = (x_, y_, w_, h_)
 
-            # Lettuce (big + messy + low circularity)
+            # Lettuce (big messy)
             elif area > 20000 and cir < 0.60 and sol < 0.85:
                 detected = True
                 detected_name = "Lettuce"
@@ -289,9 +292,9 @@ while True:
 
     cv2.imshow("Smart Scan", frame)
     cv2.imshow("Green Mask", mask_green)
-    cv2.imshow("Red Mask", mask_red)
-    cv2.imshow("Orange Mask", mask_orange)
-    cv2.imshow("Brown ",mask_brown)
+    # cv2.imshow("Red Mask", mask_red)
+    # cv2.imshow("Orange Mask", mask_orange)
+    # cv2.imshow("Brown ",mask_brown)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break

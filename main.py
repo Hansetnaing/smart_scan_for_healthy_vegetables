@@ -65,6 +65,13 @@ vegetable_info = {
         "nutrient": "Vitamin C",
         "benefit1": "Improves digestion",
         "benefit2": "Rich in antioxidants"
+    },
+
+    "Lime": {
+        "calories": "30 kcal",
+        "nutrient": "Vitamin C",
+        "benefit1": "Boosts immunity",
+        "benefit2": "Improves digestion"
     }
 }
 
@@ -110,7 +117,6 @@ while True:
     mask_orange = cv2.inRange(hsv, np.array([8,150,120]), np.array([25,255,255]))
 
     mask_green = cv2.inRange(hsv, np.array([30,40,40]), np.array([90,255,255]))
-
     mask_green = cv2.morphologyEx(mask_green, cv2.MORPH_OPEN, kernel)
 
     # ------------------ DETECT FUNCTION ------------------
@@ -177,16 +183,22 @@ while True:
             detected_name = "Chili Red"
             box_data = (x_, y_, w_, h_)
 
-    # -------- GREEN OBJECTS (ONE CALL ONLY) --------
+    # -------- GREEN OBJECTS --------
     if not detected:
         area, cir, ar, sol, x_, y_, w_, h_ = detect(mask_green)
 
         if area:
 
-            # Chili Green (small + very long)
+            # Chili Green
             if ar > 3.8:
                 detected = True
                 detected_name = "Chili Green"
+                box_data = (x_, y_, w_, h_)
+
+            # ✅ FIXED LIME (More Stable)
+            elif 0.75 < ar < 1.35 and cir > 0.65 and sol > 0.85 and 8000 < area < 25000:
+                detected = True
+                detected_name = "Lime"
                 box_data = (x_, y_, w_, h_)
 
             # Ladyfinger
@@ -201,7 +213,7 @@ while True:
                 detected_name = "Cucumber"
                 box_data = (x_, y_, w_, h_)
 
-            # Lettuce (must be BIG + messy)
+            # Lettuce
             elif area > 20000 and cir < 0.6 and sol < 0.8:
                 detected = True
                 detected_name = "Lettuce"
@@ -234,36 +246,42 @@ while True:
         panel_y = y - 140 if y - 140 > 0 else y + h_
 
         cv2.rectangle(frame, (x, panel_y),
-                      (x+360, panel_y+120),
-                      (0,215,255), -1)
+                      (x + 360, panel_y + 140),
+                      (0, 215, 255), -1)
 
         cv2.putText(frame, stable_name.upper(),
-                    (x+10, panel_y+25),
+                    (x + 10, panel_y + 25),
                     cv2.FONT_HERSHEY_SIMPLEX,
-                    0.7, (0,0,0), 2)
+                    0.7, (0, 0, 0), 2)
 
         cv2.putText(frame, "Calories: " + info["calories"],
-                    (x+10, panel_y+45),
+                    (x + 10, panel_y + 45),
                     cv2.FONT_HERSHEY_SIMPLEX,
-                    0.5, (0,0,0), 1)
+                    0.5, (0, 0, 0), 1)
 
         cv2.putText(frame, "Nutrients: " + info["nutrient"],
-                    (x+10, panel_y+65),
+                    (x + 10, panel_y + 65),
                     cv2.FONT_HERSHEY_SIMPLEX,
-                    0.5, (0,0,0), 1)
+                    0.5, (0, 0, 0), 1)
 
-        cv2.putText(frame, info["benefit1"],
-                    (x+10, panel_y+85),
+        cv2.putText(frame, "Benefits:",
+                    (x + 10, panel_y + 85),
                     cv2.FONT_HERSHEY_SIMPLEX,
-                    0.5, (0,0,0), 1)
+                    0.5, (0, 0, 0), 1)
 
-        cv2.putText(frame, info["benefit2"],
-                    (x+10, panel_y+105),
+        cv2.putText(frame, "- " + info["benefit1"],
+                    (x + 20, panel_y + 105),
                     cv2.FONT_HERSHEY_SIMPLEX,
-                    0.5, (0,0,0), 1)
+                    0.5, (0, 0, 0), 1)
+
+        cv2.putText(frame, "- " + info["benefit2"],
+                    (x + 20, panel_y + 125),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5, (0, 0, 0), 1)
 
     cv2.imshow("Smart Scan", frame)
-    cv2.imshow("Green",mask_green)
+    cv2.imshow("Green", mask_green)
+    cv2.imshow("Orange", mask_red)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break

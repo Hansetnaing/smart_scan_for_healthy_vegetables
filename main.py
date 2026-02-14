@@ -80,6 +80,9 @@ vegetable_info = {
 cap = cv2.VideoCapture(0)
 kernel = np.ones((5,5), np.uint8)
 
+# Allow minimize / maximize
+cv2.namedWindow("Smart Scan", cv2.WINDOW_NORMAL)
+
 while True:
     ret, frame = cap.read()
     if not ret:
@@ -88,6 +91,7 @@ while True:
     frame = cv2.flip(frame, 1)
     h, w, _ = frame.shape
 
+    # -------- CENTER BOX --------
     box = 400
     sx = w//2 - box//2
     sy = h//2 - box//2
@@ -117,7 +121,10 @@ while True:
     mask_orange = cv2.inRange(hsv, np.array([8,150,120]), np.array([25,255,255]))
 
     mask_green = cv2.inRange(hsv, np.array([30,40,40]), np.array([90,255,255]))
+
+    # Morphology cleanup
     mask_green = cv2.morphologyEx(mask_green, cv2.MORPH_OPEN, kernel)
+    mask_green = cv2.morphologyEx(mask_green, cv2.MORPH_CLOSE, kernel)
 
     # ------------------ DETECT FUNCTION ------------------
 
@@ -127,7 +134,7 @@ while True:
         for cnt in contours:
             area = cv2.contourArea(cnt)
 
-            if 8000 < area < roi_area * 0.9:
+            if 8000 < area < roi_area * 0.95:
 
                 peri = cv2.arcLength(cnt, True)
                 if peri == 0:
@@ -140,7 +147,6 @@ while True:
 
                 hull = cv2.convexHull(cnt)
                 hull_area = cv2.contourArea(hull)
-
                 if hull_area == 0:
                     continue
 
@@ -154,7 +160,7 @@ while True:
 
     # Potato
     area, cir, ar, sol, x_, y_, w_, h_ = detect(mask_brown)
-    if area and 0.6 < ar < 1.4 and 0.5 < cir < 0.85:
+    if area and 0.6 < ar < 1.4 and 0.45 < cir < 0.85:
         detected = True
         detected_name = "Potato"
         box_data = (x_, y_, w_, h_)
@@ -162,7 +168,7 @@ while True:
     # Tomato
     if not detected:
         area, cir, ar, sol, x_, y_, w_, h_ = detect(mask_red)
-        if area and cir > 0.65:
+        if area and cir > 0.70:
             detected = True
             detected_name = "Tomato"
             box_data = (x_, y_, w_, h_)
@@ -178,7 +184,7 @@ while True:
     # Chili Red
     if not detected:
         area, cir, ar, sol, x_, y_, w_, h_ = detect(mask_red)
-        if area and ar > 3.8:
+        if area and ar > 4.0:
             detected = True
             detected_name = "Chili Red"
             box_data = (x_, y_, w_, h_)
@@ -189,32 +195,32 @@ while True:
 
         if area:
 
-            # Chili Green
-            if ar > 3.8:
+            # Chili Green (very long)
+            if ar > 4.0:
                 detected = True
                 detected_name = "Chili Green"
                 box_data = (x_, y_, w_, h_)
 
-            # ✅ FIXED LIME (More Stable)
-            elif 0.75 < ar < 1.35 and cir > 0.65 and sol > 0.85 and 8000 < area < 25000:
+            # Lime (round + solid)
+            elif 0.75 < ar < 1.35 and cir > 0.70 and sol > 0.90:
                 detected = True
                 detected_name = "Lime"
                 box_data = (x_, y_, w_, h_)
 
-            # Ladyfinger
-            elif 2.8 < ar <= 3.8 and sol > 0.85:
+            # Ladyfinger (medium long + sharp)
+            elif 2.8 < ar <= 4.0 and sol > 0.85:
                 detected = True
                 detected_name = "Ladyfinger"
                 box_data = (x_, y_, w_, h_)
 
-            # Cucumber
-            elif 1.8 < ar <= 2.8 and sol > 0.9:
+            # Cucumber (medium long)
+            elif 1.8 < ar <= 2.8 and sol > 0.92:
                 detected = True
                 detected_name = "Cucumber"
                 box_data = (x_, y_, w_, h_)
 
-            # Lettuce
-            elif area > 20000 and cir < 0.6 and sol < 0.8:
+            # Lettuce (big + messy + low circularity)
+            elif area > 20000 and cir < 0.60 and sol < 0.85:
                 detected = True
                 detected_name = "Lettuce"
                 box_data = (x_, y_, w_, h_)
@@ -243,10 +249,10 @@ while True:
 
         info = vegetable_info.get(stable_name)
 
-        panel_y = y - 140 if y - 140 > 0 else y + h_
+        panel_y = y - 150 if y - 150 > 0 else y + h_
 
         cv2.rectangle(frame, (x, panel_y),
-                      (x + 360, panel_y + 140),
+                      (x + 380, panel_y + 140),
                       (0, 215, 255), -1)
 
         cv2.putText(frame, stable_name.upper(),
@@ -279,9 +285,12 @@ while True:
                     cv2.FONT_HERSHEY_SIMPLEX,
                     0.5, (0, 0, 0), 1)
 
+    # -------- SHOW WINDOWS --------
+
     cv2.imshow("Smart Scan", frame)
-    cv2.imshow("Green", mask_green)
-    cv2.imshow("Orange", mask_red)
+    cv2.imshow("Green Mask", mask_green)
+    cv2.imshow("Red Mask", mask_red)
+    cv2.imshow("Orange Mask", mask_orange)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break

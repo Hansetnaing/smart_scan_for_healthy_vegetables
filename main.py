@@ -130,34 +130,35 @@ while True:
 
     if area:
 
-        # Lime
+        # Lime (round)
         if 0.75 < ar < 1.35 and cir > 0.75:
             detected = True
             detected_name = "Lime"
 
-        # Chili Green
-        elif ar > 4.0 and sharp >= 1:
+        # Chili (very long + at least 1 sharp)
+        elif ar > 4.2 and sharp >= 1:
             detected = True
             detected_name = "Chili Green"
 
-        # Ladyfinger
-        elif 2.8 < ar <= 4.0 and sharp == 1:
-            detected = True
-            detected_name = "Ladyfinger"
-
-        # Cucumber
+        # Cucumber (medium long + NO sharp)
         elif 2.0 < ar <= 3.5 and sharp == 0:
             detected = True
             detected_name = "Cucumber"
+
+        # Ladyfinger (medium long + maybe sharp OR slightly lower solidity)
+        elif 2.5 < ar <= 4.0 and sol < 0.93:
+            detected = True
+            detected_name = "Ladyfinger"
 
         # Lettuce
         elif area > 20000 and cir < 0.60:
             detected = True
             detected_name = "Lettuce"
 
+
         if detected:
             box_data = (x_,y_,w_,h_)
-
+    
     # ------------------ Stability ------------------
 
     if detected:
@@ -210,7 +211,7 @@ while True:
                     cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,0,0),1)
 
     cv2.imshow("Smart Scan",frame)
-    cv2.imshow("Green Mask",mask_red)
+    cv2.imshow("Green Mask",mask_green)
 
     if cv2.waitKey(1)&0xFF==ord('q'):
         break

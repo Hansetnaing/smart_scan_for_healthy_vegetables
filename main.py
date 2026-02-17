@@ -83,6 +83,7 @@ while True:
     # ------------------ MASKS ------------------
 
     mask_potato = cv2.inRange(hsv, (18, 40, 80), (35, 200, 255))
+    mask_skin = cv2.inRange(hsv, (0, 30, 60), (25, 200, 255))
     mask_brown = cv2.inRange(hsv, (5, 50, 50), (20, 200, 255))
     mask_red    = cv2.inRange(hsv,(0,100,80),(10,255,255)) + \
                   cv2.inRange(hsv,(160,100,80),(179,255,255))
@@ -125,15 +126,19 @@ while True:
 
     # ------------------ POTATO ------------------
 
-    data = detect(mask_potato | mask_brown)
+    potato_mask_clean = cv2.bitwise_and(
+        mask_potato | mask_brown,
+        cv2.bitwise_not(mask_skin)
+    )
+    data = detect(potato_mask_clean)
     if data:
         area,cir,ar,sol,sharp,thickness,x_,y_,w_,h_ = data
-        if 0.7 < ar < 1.5 and 0.55 < cir < 0.85 and sol > 0.90:
+        if 0.7 < ar < 1.5 and 0.55 < cir < 0.85 and sol > 0.90 and thickness > 0.65 and sharp == 0 and area < 40000:
             detected = True
             detected_name = "Potato"
             box_data = (x_,y_,w_,h_)
 
-    # ------------------ TOMATO (RED + ORANGE) ------------------
+    # ------------------ TOMATO ------------------
 
     if not detected:
         combined_mask = cv2.bitwise_or(mask_red, mask_orange)
@@ -163,10 +168,7 @@ while True:
         if data:
             area,cir,ar,sol,sharp,thickness,x_,y_,w_,h_ = data
 
-            if 0.8 < ar < 1.3 and cir > 0.75:
-                detected_name = "Lime"
-
-            elif ar > 5 and sharp >= 1:
+            if ar > 5 and sharp >= 1:
                 detected_name = "Ladyfinger"
 
             elif 3.3 < ar < 4.5 and thickness > 0.68:
@@ -175,8 +177,11 @@ while True:
             elif 2.5 < ar <= 4.2 and sharp >= 1 and sol < 0.93:
                 detected_name = "Chili Green"
 
-            elif area > 15000 and cir < 0.60 and sol < 0.85:
+            if area > 10000 and cir < 0.75 and sol < 0.92:
                 detected_name = "Lettuce"
+
+            if 0.8 < ar < 1.3 and cir > 0.75:
+                detected_name = "Lime"
 
             print("AR:", ar, "SHARP:", sharp, "THICK:", thickness, "CIR:", cir, "Name", detected_name)
 
@@ -233,6 +238,9 @@ while True:
     cv2.imshow("Smart Scan",frame)
     cv2.imshow("Potato",mask_potato)
     cv2.imshow("Brown",mask_brown)
+    cv2.imshow("Orange",mask_orange)
+    cv2.imshow("Red",mask_red)
+    cv2.imshow("Green", mask_green)
 
     if cv2.waitKey(1)&0xFF==ord('q'):
         break

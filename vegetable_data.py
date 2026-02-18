@@ -53,7 +53,7 @@ vegetable_info = {
         "benefit4": "Helps in weight loss",
         "benefit5": "Rich in antioxidants"
     },
-    "Green Chili": {
+    "Chili Green": {
         "calories": "40 kcal",
         "nutrient": "Vitamin C, Vitamin A, Capsaicin, Potassium",
         "benefit1": "Boosts metabolism",
@@ -61,5 +61,14 @@ vegetable_info = {
         "benefit3": "Promotes heart health",
         "benefit4": "Helps reduce inflammation",
         "benefit5": "Rich in antioxidants"
+    },
+    "Ladyfinger": {
+        "calories": "33 kcal",
+        "nutrient": "Vitamin C, Vitamin K, Folate, Fiber, Magnesium",
+        "benefit1": "Supports healthy digestion due to high fiber",
+        "benefit2": "Helps regulate blood sugar levels",
+        "benefit3": "Boosts immune system",
+        "benefit4": "Good for heart health",
+        "benefit5": "Supports bone strength"
     }
 }

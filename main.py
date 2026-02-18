@@ -50,7 +50,6 @@ def count_sharp_ends(cnt):
 
 cap = cv2.VideoCapture(0)
 kernel = np.ones((5,5), np.uint8)
-
 cv2.namedWindow("Smart Scan", cv2.WINDOW_NORMAL)
 
 while True:
@@ -61,7 +60,7 @@ while True:
     frame = cv2.flip(frame, 1)
     h, w, _ = frame.shape
 
-    box = 300   # smaller = faster
+    box = 300
     sx = w//2 - box//2
     sy = h//2 - box//2
     ex = sx + box
@@ -71,7 +70,6 @@ while True:
 
     roi = frame[sy:ey, sx:ex]
     roi = cv2.convertScaleAbs(roi, alpha=1.1, beta=10)
-
     blur = cv2.GaussianBlur(roi,(5,5),0)
     hsv = cv2.cvtColor(blur, cv2.COLOR_BGR2HSV)
 
@@ -83,11 +81,9 @@ while True:
     # ------------------ MASKS ------------------
 
     mask_potato = cv2.inRange(hsv, (10, 30, 50), (45, 255, 255))
-    # mask_brown = cv2.inRange(hsv, (8, 40, 60), (35, 255, 255))
-    # mask_skin = cv2.inRange(hsv, (0, 30, 60), (25, 200, 255))
     mask_red    = cv2.inRange(hsv,(0,100,80),(10,255,255)) + \
                   cv2.inRange(hsv,(160,100,80),(179,255,255))
-    mask_orange = cv2.inRange(hsv,(8,150,120),(25,255,255))
+    mask_orange = cv2.inRange(hsv,(8,120,120),(30,255,255))
     mask_green  = cv2.inRange(hsv,(30,40,40),(90,255,255))
 
     mask_green  = cv2.morphologyEx(mask_green, cv2.MORPH_OPEN, kernel)
@@ -119,85 +115,92 @@ while True:
 
         solidity = area/hull_area
         sharp = count_sharp_ends(cnt)
-
         thickness = area / (w_ * h_)
 
         return area,circularity,ar,solidity,sharp,thickness,x_,y_,w_,h_
 
-
-    # ------------------ POTATO------------------
-
-    # ------------------ POTATO------------------
-
-    mask_potato = cv2.morphologyEx(mask_potato, cv2.MORPH_CLOSE, kernel)
-    mask_potato = cv2.morphologyEx(mask_potato, cv2.MORPH_OPEN, kernel)
+    # ------------------ POTATO ------------------
 
     data = detect(mask_potato)
-
     if data:
-        area, cir, ar, sol, sharp, thickness, x_, y_, w_, h_ = data
-
-        if 0.70 < ar < 1.45 and 0.70 < cir < 0.85 and sol > 0.85 and thickness > 0.70 and sharp <= 1 and area < 45000:
+        area,cir,ar,sol,sharp,thickness,x_,y_,w_,h_ = data
+        if 0.70 < ar < 1.45 and 0.70 < cir < 0.85 and sol > 0.85 and thickness > 0.70:
             detected = True
             detected_name = "Potato"
-            box_data = (x_, y_, w_, h_)
+            box_data = (x_,y_,w_,h_)
 
-            print("AR:", ar,
-                  "SHARP:", sharp,
-                  "THICK:", thickness,
-                  "CIR:", cir,
-                  "SOL:", sol,
-                  "Name:", detected_name)
-
-    # ------------------ TOMATO ------------------
+    # ------------------ RED ------------------
 
     if not detected:
-        combined_mask = cv2.bitwise_or(mask_red, mask_orange)
-        data = detect(combined_mask)
+        data = detect(mask_red)
         if data:
             area,cir,ar,sol,sharp,thickness,x_,y_,w_,h_ = data
-            if 0.8 < ar < 1.3 and cir > 0.75:
-                detected = True
+
+            if 0.85 < ar < 1.2 and cir > 0.80 and sol > 0.90:
                 detected_name = "Tomato"
+                print("Name: ",detected_name,"Ar: ",ar,"Cir: ",cir,"Sol: ",sol)
+
+            elif ar > 2.5 and thickness > 0.6:
+                detected_name = "Eggplant"
+
+            if detected_name:
+                detected = True
                 box_data = (x_,y_,w_,h_)
 
-            elif 2.5 < ar <= 4.2 and sharp >= 1 and sol < 0.93:
-                detected_name = "Chili Red"
-
-    # ------------------ CARROT ------------------
+    # ------------------ ORANGE ------------------
 
     if not detected:
         data = detect(mask_orange)
         if data:
             area,cir,ar,sol,sharp,thickness,x_,y_,w_,h_ = data
+
             if ar > 3.5:
-                detected = True
                 detected_name = "Carrot"
+
+            elif 2.0 < ar < 3.5 and thickness > 0.65:
+                detected_name = "Corn"
+
+            if detected_name:
+                detected = True
                 box_data = (x_,y_,w_,h_)
 
-    # ------------------ GREEN ------------------
+    # ------------------ GREEN (STRICT MODE) ------------------
 
     if not detected:
         data = detect(mask_green)
         if data:
             area,cir,ar,sol,sharp,thickness,x_,y_,w_,h_ = data
 
+            # Ladyfinger
             if ar > 5 and sharp >= 1:
                 detected_name = "Ladyfinger"
 
-            elif 3.3 < ar < 4.5 and thickness > 0.68:
+            # Cucumber
+            elif 3.5 < ar < 4.5 and thickness > 0.75 and sol > 0.92:
                 detected_name = "Cucumber"
 
+            # Chili
             elif 2.5 < ar <= 4.2 and sharp >= 1 and sol < 0.93:
                 detected_name = "Chili Green"
 
-            if area > 10000 and cir < 0.75 and sol < 0.92:
-                detected_name = "Lettuce"
-
-            if 0.8 < ar < 1.3 and cir > 0.75:
+            # Lime (VERY STRICT)
+            elif (
+                0.9 < ar < 1.1 and
+                cir > 0.88 and
+                sol > 0.96 and
+                thickness > 0.78 and
+                sharp == 0
+            ):
                 detected_name = "Lime"
 
-            print("AR:", ar, "SHARP:", sharp, "THICK:", thickness, "CIR:", cir, "Name", detected_name)
+            # Lettuce (More Strict – avoid leaf confusion)
+            elif (
+                area > 15000 and
+                cir < 0.60 and
+                sol < 0.88 and
+                thickness < 0.65
+            ):
+                detected_name = "Lettuce"
 
             if detected_name:
                 detected = True
@@ -217,44 +220,74 @@ while True:
 
     # ------------------ Display ------------------
 
-    if stable_count >= CONFIRM_FRAMES and box_data:
+    if stable_count >= CONFIRM_FRAMES and box_data and stable_name in vegetable_info:
 
-        x_,y_,w_,h_ = box_data
+        x_, y_, w_, h_ = box_data
         x = x_ + sx
         y = y_ + sy
 
-        cv2.rectangle(frame,(x,y),(x+w_,y+h_),(0,215,255),3)
+        # Bounding box
+        cv2.rectangle(frame, (x, y), (x + w_, y + h_), (0, 215, 255), 3)
 
         info = vegetable_info.get(stable_name)
 
-        panel_y = y-150 if y-150>0 else y+h_
-        cv2.rectangle(frame,(x,panel_y),(x+380,panel_y+140),(0,215,255),-1)
+        # Panel position
+        panel_y = y - 160 if y - 160 > 0 else y + h_
 
-        cv2.putText(frame,stable_name.upper(),(x+10,panel_y+25),
-                    cv2.FONT_HERSHEY_SIMPLEX,0.7,(0,0,0),2)
+        # Main panel background
+        cv2.rectangle(frame, (x, panel_y), (x + 400, panel_y + 150), (0, 215, 255), -1)
 
-        cv2.putText(frame,"Calories: "+info["calories"],
-                    (x+10,panel_y+45),
-                    cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,0,0),1)
+        # Title
+        cv2.putText(frame, stable_name.upper(), (x + 15, panel_y + 30),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 0), 2)
 
-        cv2.putText(frame,"Nutrients: "+info["nutrient"],
-                    (x+10,panel_y+65),
-                    cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,0,0),1)
+        # Info lines
+        cv2.putText(frame, "Calories: " + info["calories"],
+                    (x + 15, panel_y + 55),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 0, 0), 1)
 
-        cv2.putText(frame,"- "+info["benefit1"],
-                    (x+20,panel_y+100),
-                    cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,0,0),1)
+        cv2.putText(frame, "Nutrients: " + info["nutrient"],
+                    (x + 15, panel_y + 75),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 0, 0), 1)
 
-        cv2.putText(frame,"- "+info["benefit2"],
-                    (x+20,panel_y+120),
-                    cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,0,0),1)
+        cv2.putText(frame, "- " + info["benefit1"],
+                    (x + 25, panel_y + 105),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
+
+        cv2.putText(frame, "- " + info["benefit2"],
+                    (x + 25, panel_y + 125),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
+
+    # ------------------ ERROR PANEL ------------------
+
+    else:
+
+        panel_x = 40
+        panel_y = 40
+
+        # Red background panel
+        cv2.rectangle(frame, (panel_x, panel_y),
+                      (panel_x + 420, panel_y + 90),
+                      (0, 0, 255), -1)
+
+        # Border
+        cv2.rectangle(frame, (panel_x, panel_y),
+                      (panel_x + 420, panel_y + 90),
+                      (0, 0, 180), 3)
+
+        cv2.putText(frame, "VEGETABLE NOT RECOGNIZED",
+                    (panel_x + 20, panel_y + 35),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.7, (255, 255, 255), 2)
+
+        cv2.putText(frame, "Please place a valid vegetable",
+                    (panel_x + 20, panel_y + 65),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.55, (255, 255, 255), 1)
 
     cv2.imshow("Smart Scan",frame)
-    cv2.imshow("Potato",mask_potato)
-    # cv2.imshow("Brown",mask_brown)
-    # cv2.imshow("Orange",mask_orange)
+    cv2.imshow("Green",mask_green)
     # cv2.imshow("Red",mask_red)
-    # cv2.imshow("Green", mask_green)
 
     if cv2.waitKey(1)&0xFF==ord('q'):
         break

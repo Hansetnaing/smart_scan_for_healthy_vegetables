@@ -82,9 +82,9 @@ while True:
 
     # ------------------ MASKS ------------------
 
-    mask_potato = cv2.inRange(hsv, (18, 40, 80), (35, 200, 255))
-    mask_skin = cv2.inRange(hsv, (0, 30, 60), (25, 200, 255))
-    mask_brown = cv2.inRange(hsv, (5, 50, 50), (20, 200, 255))
+    mask_potato = cv2.inRange(hsv, (10, 30, 50), (45, 255, 255))
+    # mask_brown = cv2.inRange(hsv, (8, 40, 60), (35, 255, 255))
+    # mask_skin = cv2.inRange(hsv, (0, 30, 60), (25, 200, 255))
     mask_red    = cv2.inRange(hsv,(0,100,80),(10,255,255)) + \
                   cv2.inRange(hsv,(160,100,80),(179,255,255))
     mask_orange = cv2.inRange(hsv,(8,150,120),(25,255,255))
@@ -124,19 +124,30 @@ while True:
 
         return area,circularity,ar,solidity,sharp,thickness,x_,y_,w_,h_
 
-    # ------------------ POTATO ------------------
 
-    potato_mask_clean = cv2.bitwise_and(
-        mask_potato | mask_brown,
-        cv2.bitwise_not(mask_skin)
-    )
-    data = detect(potato_mask_clean)
+    # ------------------ POTATO------------------
+
+    # ------------------ POTATO------------------
+
+    mask_potato = cv2.morphologyEx(mask_potato, cv2.MORPH_CLOSE, kernel)
+    mask_potato = cv2.morphologyEx(mask_potato, cv2.MORPH_OPEN, kernel)
+
+    data = detect(mask_potato)
+
     if data:
-        area,cir,ar,sol,sharp,thickness,x_,y_,w_,h_ = data
-        if 0.7 < ar < 1.5 and 0.55 < cir < 0.85 and sol > 0.90 and thickness > 0.65 and sharp == 0 and area < 40000:
+        area, cir, ar, sol, sharp, thickness, x_, y_, w_, h_ = data
+
+        if 0.70 < ar < 1.45 and 0.70 < cir < 0.85 and sol > 0.85 and thickness > 0.70 and sharp <= 1 and area < 45000:
             detected = True
             detected_name = "Potato"
-            box_data = (x_,y_,w_,h_)
+            box_data = (x_, y_, w_, h_)
+
+            print("AR:", ar,
+                  "SHARP:", sharp,
+                  "THICK:", thickness,
+                  "CIR:", cir,
+                  "SOL:", sol,
+                  "Name:", detected_name)
 
     # ------------------ TOMATO ------------------
 
@@ -149,6 +160,9 @@ while True:
                 detected = True
                 detected_name = "Tomato"
                 box_data = (x_,y_,w_,h_)
+
+            elif 2.5 < ar <= 4.2 and sharp >= 1 and sol < 0.93:
+                detected_name = "Chili Red"
 
     # ------------------ CARROT ------------------
 
@@ -237,7 +251,7 @@ while True:
 
     cv2.imshow("Smart Scan",frame)
     cv2.imshow("Potato",mask_potato)
-    cv2.imshow("Brown",mask_brown)
+    # cv2.imshow("Brown",mask_brown)
     # cv2.imshow("Orange",mask_orange)
     # cv2.imshow("Red",mask_red)
     # cv2.imshow("Green", mask_green)

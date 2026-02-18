@@ -238,9 +238,9 @@ while True:
     cv2.imshow("Smart Scan",frame)
     cv2.imshow("Potato",mask_potato)
     cv2.imshow("Brown",mask_brown)
-    cv2.imshow("Orange",mask_orange)
-    cv2.imshow("Red",mask_red)
-    cv2.imshow("Green", mask_green)
+    # cv2.imshow("Orange",mask_orange)
+    # cv2.imshow("Red",mask_red)
+    # cv2.imshow("Green", mask_green)
 
     if cv2.waitKey(1)&0xFF==ord('q'):
         break

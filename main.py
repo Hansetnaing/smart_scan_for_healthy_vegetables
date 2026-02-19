@@ -183,24 +183,24 @@ while True:
             elif 2.5 < ar <= 4.2 and sharp >= 1 and sol < 0.93:
                 detected_name = "Chili Green"
 
-            # Lime (VERY STRICT)
-            elif (
-                0.9 < ar < 1.1 and
-                cir > 0.88 and
-                sol > 0.96 and
-                thickness > 0.78 and
-                sharp == 0
-            ):
+            # Lime
+            if 0.8 < ar < 1.3 and cir > 0.75:
                 detected_name = "Lime"
 
-            # Lettuce (More Strict – avoid leaf confusion)
+            # Lettuce (fixed)
             elif (
-                area > 15000 and
-                cir < 0.60 and
-                sol < 0.88 and
-                thickness < 0.65
+                    area > 18000 and
+                    0.85 <= ar <= 1.10 and
+                    0.12 <= cir <= 0.22 and
+                    0.58 <= sol <= 0.68 and
+                    thickness < 0.38
             ):
                 detected_name = "Lettuce"
+
+            print("AR:", ar, "CIR:", cir, "SOL:", sol, "THICK:", thickness, "Name:",detected_name)
+            print("Detected:", detected_name)
+            print("Stable:", stable_name)
+            print("Stable Count:", stable_count)
 
             if detected_name:
                 detected = True
@@ -231,63 +231,80 @@ while True:
 
         info = vegetable_info.get(stable_name)
 
-        # Panel position
-        panel_y = y - 160 if y - 160 > 0 else y + h_
+        # ---------- Side Panel (Right side of screen) ----------
+        panel_x = frame.shape[1] - 420
+        panel_y = 40
+        panel_width = 380
 
-        # Main panel background
-        cv2.rectangle(frame, (x, panel_y), (x + 400, panel_y + 150), (0, 215, 255), -1)
+        # Collect all benefits automatically
+        benefits = [v for k, v in info.items() if k.startswith("benefit")]
 
-        # Title
-        cv2.putText(frame, stable_name.upper(), (x + 15, panel_y + 30),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 0), 2)
+        panel_height = 120 + (len(benefits) * 25)
 
-        # Info lines
+        # Transparent background
+        overlay = frame.copy()
+        cv2.rectangle(overlay,
+                      (panel_x, panel_y),
+                      (panel_x + panel_width, panel_y + panel_height),
+                      (0, 215, 255), -1)
+
+        alpha = 0.85
+        cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
+
+        # ---------- Text ----------
+        cv2.putText(frame, stable_name.upper(),
+                    (panel_x + 15, panel_y + 30),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 2)
+
         cv2.putText(frame, "Calories: " + info["calories"],
-                    (x + 15, panel_y + 55),
+                    (panel_x + 15, panel_y + 60),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 0, 0), 1)
 
         cv2.putText(frame, "Nutrients: " + info["nutrient"],
-                    (x + 15, panel_y + 75),
+                    (panel_x + 15, panel_y + 80),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 0, 0), 1)
 
-        cv2.putText(frame, "- " + info["benefit1"],
-                    (x + 25, panel_y + 105),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
-
-        cv2.putText(frame, "- " + info["benefit2"],
-                    (x + 25, panel_y + 125),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
+        y_text = panel_y + 110
+        for b in benefits:
+            cv2.putText(frame, "- " + b,
+                        (panel_x + 25, y_text),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
+            y_text += 25
 
     # ------------------ ERROR PANEL ------------------
 
     else:
 
-        panel_x = 40
+        panel_x = frame.shape[1] - 420
         panel_y = 40
+        panel_width = 380
+        panel_height = 100
 
-        # Red background panel
-        cv2.rectangle(frame, (panel_x, panel_y),
-                      (panel_x + 420, panel_y + 90),
+        overlay = frame.copy()
+        cv2.rectangle(overlay,
+                      (panel_x, panel_y),
+                      (panel_x + panel_width, panel_y + panel_height),
                       (0, 0, 255), -1)
 
-        # Border
-        cv2.rectangle(frame, (panel_x, panel_y),
-                      (panel_x + 420, panel_y + 90),
-                      (0, 0, 180), 3)
+        alpha = 0.85
+        cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
 
         cv2.putText(frame, "VEGETABLE NOT RECOGNIZED",
-                    (panel_x + 20, panel_y + 35),
+                    (panel_x + 20, panel_y + 40),
                     cv2.FONT_HERSHEY_SIMPLEX,
                     0.7, (255, 255, 255), 2)
 
-        cv2.putText(frame, "Please place a valid vegetable",
-                    (panel_x + 20, panel_y + 65),
+        cv2.putText(frame, "Place a valid vegetable inside the box",
+                    (panel_x + 20, panel_y + 70),
                     cv2.FONT_HERSHEY_SIMPLEX,
-                    0.55, (255, 255, 255), 1)
+                    0.5, (255, 255, 255), 1)
+
+
 
     cv2.imshow("Smart Scan",frame)
     cv2.imshow("Green",mask_green)
     # cv2.imshow("Red",mask_red)
+    # cv2.imshow("Orange")
 
     if cv2.waitKey(1)&0xFF==ord('q'):
         break

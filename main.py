@@ -89,9 +89,6 @@ while True:
     mask_green  = cv2.morphologyEx(mask_green, cv2.MORPH_OPEN, kernel)
     mask_green  = cv2.morphologyEx(mask_green, cv2.MORPH_CLOSE, kernel)
 
-    mask_lettuce = cv2.inRange(hsv, (30, 40, 50), (65, 255, 255))
-    mask_lettuce = cv2.morphologyEx(mask_lettuce, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
-
     def detect(mask):
         contours,_ = cv2.findContours(mask,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
         if not contours:

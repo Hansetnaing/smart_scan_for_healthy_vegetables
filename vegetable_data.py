@@ -26,15 +26,6 @@ vegetable_info = {
         "benefit4": "Aids digestion",
         "benefit5": "Helps detoxify the body"
     },
-    "Lettuce": {
-        "calories": "15 kcal",
-        "nutrient": "Vitamin A, Vitamin K, Folate, Fiber",
-        "benefit1": "Supports bone health",
-        "benefit2": "Aids in digestion",
-        "benefit3": "Low-calorie food for weight management",
-        "benefit4": "Rich in antioxidants",
-        "benefit5": "Promotes hydration"
-    },
     "Cucumber": {
         "calories": "16 kcal",
         "nutrient": "Vitamin K, Vitamin C, Potassium, Fiber",

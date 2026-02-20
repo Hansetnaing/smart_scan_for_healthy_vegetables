@@ -5,6 +5,7 @@ from vegetable_data import vegetable_info
 stable_name = ""
 stable_count = 0
 CONFIRM_FRAMES = 5
+detected_frames = 0
 
 # ------------------ Sharp Detection ------------------
 
@@ -124,6 +125,11 @@ while True:
     data = detect(mask_potato)
     if data:
         area,cir,ar,sol,sharp,thickness,x_,y_,w_,h_ = data
+
+        detected = True
+        detected_name = ""
+        box_data = (x_, y_, w_, h_)
+
         if 0.70 < ar < 1.45 and 0.70 < cir < 0.85 and sol > 0.85 and thickness > 0.70:
             detected = True
             detected_name = "Potato"
@@ -135,6 +141,10 @@ while True:
         data = detect(mask_red)
         if data:
             area,cir,ar,sol,sharp,thickness,x_,y_,w_,h_ = data
+
+            detected = True
+            detected_name = ""
+            box_data = (x_, y_, w_, h_)
 
             if 0.85 < ar < 1.2 and cir > 0.80 and sol > 0.90:
                 detected_name = "Tomato"
@@ -156,6 +166,10 @@ while True:
         if data:
             area,cir,ar,sol,sharp,thickness,x_,y_,w_,h_ = data
 
+            detected = True
+            detected_name = ""
+            box_data = (x_, y_, w_, h_)
+
             if ar > 3.5:
                 detected_name = "Carrot"
 
@@ -176,7 +190,9 @@ while True:
         data = detect(mask_green)
         if data:
             area,cir,ar,sol,sharp,thickness,x_,y_,w_,h_ = data
+            detected = True
             detected_name = ""
+            box_data = (x_, y_, w_, h_)
 
             # Ladyfinger
             if ar > 5 and sharp >= 1:
@@ -203,16 +219,28 @@ while True:
     # ------------------ Stability ------------------
 
     if detected:
+        detected_frames += 1
+    else:
+        detected_frames = 0
+        stable_name = ""
+        stable_count = 0
+
+    # name stability (only for in-scope)
+    if detected and detected_name:
         if detected_name == stable_name:
             stable_count += 1
         else:
             stable_name = detected_name
             stable_count = 1
-    else:
-        stable_name = ""
-        stable_count = 0
 
-    # ------------------ Display ------------------
+    # ------------------ DISPLAY ------------------
+
+    panel_x = frame.shape[1] - 420
+    panel_y = 40
+    panel_width = 380
+    alpha = 0.85
+
+    # ================== STATE 1 : CORRECT (IN SCOPE) ==================
 
     if stable_count >= CONFIRM_FRAMES and box_data and stable_name in vegetable_info:
 
@@ -225,27 +253,23 @@ while True:
 
         info = vegetable_info.get(stable_name)
 
-        # ---------- Side Panel ----------
-        panel_x = frame.shape[1] - 420
-        panel_y = 40
-        panel_width = 380
-
-        # Collect all benefits automatically
+        # Collect benefits automatically
         benefits = [v for k, v in info.items() if k.startswith("benefit")]
 
         panel_height = 120 + (len(benefits) * 25)
 
-        # Transparent background
         overlay = frame.copy()
-        cv2.rectangle(overlay,
-                      (panel_x, panel_y),
-                      (panel_x + panel_width, panel_y + panel_height),
-                      (0, 215, 255), -1)
+        cv2.rectangle(
+            overlay,
+            (panel_x, panel_y),
+            (panel_x + panel_width, panel_y + panel_height),
+            (0, 215, 255),
+            -1
+        )
 
-        alpha = 0.85
         cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
 
-        # ---------- Text ----------
+        # Text
         cv2.putText(frame, stable_name.upper(),
                     (panel_x + 15, panel_y + 30),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 2)
@@ -265,39 +289,67 @@ while True:
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
             y_text += 25
 
-    # ------------------ ERROR PANEL ------------------
+
+    # ================== STATE 2 : OUT OF SCOPE ==================
+
+    elif detected_frames >= CONFIRM_FRAMES and not (
+
+            stable_count >= CONFIRM_FRAMES and stable_name in vegetable_info
+
+    ):
+
+        panel_height = 100
+        overlay = frame.copy()
+
+        cv2.rectangle(
+            overlay,
+            (panel_x, panel_y),
+            (panel_x + panel_width, panel_y + panel_height),
+            (0, 0, 255),
+            -1
+        )
+
+        cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
+
+        cv2.putText(frame, "OUT OF SCOPE VEGETABLE",
+                    (panel_x + 20, panel_y + 40),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 0, 0), 2)
+
+        cv2.putText(frame, "This vegetable is not in our system",
+                    (panel_x + 20, panel_y + 70),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
+
+
+    # ================== STATE 3 : NO DETECTION (WAITING) ==================
 
     else:
 
-        panel_x = frame.shape[1] - 420
-        panel_y = 40
-        panel_width = 380
-        panel_height = 100
-
+        panel_height = 90
         overlay = frame.copy()
-        cv2.rectangle(overlay,
-                      (panel_x, panel_y),
-                      (panel_x + panel_width, panel_y + panel_height),
-                      (0, 0, 255), -1)
 
-        alpha = 0.85
+        cv2.rectangle(
+            overlay,
+            (panel_x, panel_y),
+            (panel_x + panel_width, panel_y + panel_height),
+            (200, 200, 200),
+            -1
+        )
+
         cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
 
-        cv2.putText(frame, "VEGETABLE NOT RECOGNIZED",
+        cv2.putText(frame, "NO VEGETABLE DETECTED",
                     (panel_x + 20, panel_y + 40),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.7, (255, 255, 255), 2)
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
 
-        cv2.putText(frame, "Place a valid vegetable inside the box",
-                    (panel_x + 20, panel_y + 70),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.5, (255, 255, 255), 1)
-
-
+        cv2.putText(frame, "Place a vegetable inside the box",
+                    (panel_x + 20, panel_y + 65),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
 
     cv2.imshow("Smart Scan",frame)
-    cv2.imshow("Green",mask_green)
-    cv2.imshow("Red",mask_red)
+    # cv2.imshow("Green",mask_green)
+    # cv2.imshow("Red",mask_red)
+    cv2.imshow("Orange",mask_orange)
+    # cv2.imshow("Brown",mask_potato)
 
     if cv2.waitKey(1)&0xFF==ord('q'):
         break

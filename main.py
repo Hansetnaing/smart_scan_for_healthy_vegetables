@@ -150,8 +150,8 @@ while True:
                 detected_name = "Tomato"
                 print("Name: ",detected_name,"Ar: ",ar,"Cir: ",cir,"Sol: ",sol)
 
-            elif ar > 2.5 and thickness > 0.6:
-                detected_name = "Eggplant"
+            elif ar > 3.5:
+                detected_name = "Carrot"
 
             if detected_name:
                 detected = True
@@ -347,8 +347,8 @@ while True:
 
     cv2.imshow("Smart Scan",frame)
     # cv2.imshow("Green",mask_green)
-    # cv2.imshow("Red",mask_red)
-    cv2.imshow("Orange",mask_orange)
+    cv2.imshow("Red",mask_red)
+    # cv2.imshow("Orange",mask_orange)
     # cv2.imshow("Brown",mask_potato)
 
     if cv2.waitKey(1)&0xFF==ord('q'):

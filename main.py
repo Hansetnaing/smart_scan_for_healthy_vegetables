@@ -89,6 +89,9 @@ while True:
     mask_green  = cv2.morphologyEx(mask_green, cv2.MORPH_OPEN, kernel)
     mask_green  = cv2.morphologyEx(mask_green, cv2.MORPH_CLOSE, kernel)
 
+    mask_lettuce = cv2.inRange(hsv, (30, 40, 50), (65, 255, 255))
+    mask_lettuce = cv2.morphologyEx(mask_lettuce, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
+
     def detect(mask):
         contours,_ = cv2.findContours(mask,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
         if not contours:
@@ -147,6 +150,8 @@ while True:
                 detected = True
                 box_data = (x_,y_,w_,h_)
 
+            print("Name: ",detected_name)
+
     # ------------------ ORANGE ------------------
 
     if not detected:
@@ -164,12 +169,17 @@ while True:
                 detected = True
                 box_data = (x_,y_,w_,h_)
 
-    # ------------------ GREEN (STRICT MODE) ------------------
+            print("Name: ",detected_name)
+
+
+
+    # ------------------ GREEN ------------------
 
     if not detected:
         data = detect(mask_green)
         if data:
             area,cir,ar,sol,sharp,thickness,x_,y_,w_,h_ = data
+            detected_name = ""
 
             # Ladyfinger
             if ar > 5 and sharp >= 1:
@@ -184,23 +194,10 @@ while True:
                 detected_name = "Chili Green"
 
             # Lime
-            if 0.8 < ar < 1.3 and cir > 0.75:
+            elif 0.8 < ar < 1.3 and cir > 0.75 and sol > 0.85:
                 detected_name = "Lime"
 
-            # Lettuce (fixed)
-            elif (
-                    area > 18000 and
-                    0.85 <= ar <= 1.10 and
-                    0.12 <= cir <= 0.22 and
-                    0.58 <= sol <= 0.68 and
-                    thickness < 0.38
-            ):
-                detected_name = "Lettuce"
-
-            print("AR:", ar, "CIR:", cir, "SOL:", sol, "THICK:", thickness, "Name:",detected_name)
             print("Detected:", detected_name)
-            print("Stable:", stable_name)
-            print("Stable Count:", stable_count)
 
             if detected_name:
                 detected = True
@@ -231,7 +228,7 @@ while True:
 
         info = vegetable_info.get(stable_name)
 
-        # ---------- Side Panel (Right side of screen) ----------
+        # ---------- Side Panel ----------
         panel_x = frame.shape[1] - 420
         panel_y = 40
         panel_width = 380
@@ -303,8 +300,7 @@ while True:
 
     cv2.imshow("Smart Scan",frame)
     cv2.imshow("Green",mask_green)
-    # cv2.imshow("Red",mask_red)
-    # cv2.imshow("Orange")
+    cv2.imshow("Red",mask_red)
 
     if cv2.waitKey(1)&0xFF==ord('q'):
         break

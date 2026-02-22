@@ -4,7 +4,7 @@ from vegetable_data import vegetable_info
 
 stable_name = ""
 stable_count = 0
-CONFIRM_FRAMES = 5
+CONFIRM_FRAMES = 2
 detected_frames = 0
 
 # ------------------ Sharp Detection ------------------
@@ -182,8 +182,6 @@ while True:
 
             print("Name: ",detected_name)
 
-
-
     # ------------------ GREEN ------------------
 
     if not detected:
@@ -199,18 +197,15 @@ while True:
                 detected_name = "Ladyfinger"
 
             # Cucumber
-            elif 3.5 < ar < 4.5 and thickness > 0.75 and sol > 0.92:
+            elif 1 < ar < 4.5 and 0.5 < thickness < 0.7    and sol > 0.92:
                 detected_name = "Cucumber"
 
-            # Chili
-            elif 2.5 < ar <= 4.2 and sharp >= 1 and sol < 0.93:
-                detected_name = "Chili Green"
-
             # Lime
-            elif 0.8 < ar < 1.3 and cir > 0.75 and sol > 0.85:
+            elif 0.8 < ar < 1.3 and cir > 0.55 and sol > 0.85:
                 detected_name = "Lime"
 
             print("Detected:", detected_name)
+            print("Ar",ar,"Cir",cir,"Sol",sol,"Sharp",sharp,"Think",thickness)
 
             if detected_name:
                 detected = True
@@ -237,10 +232,10 @@ while True:
 
     panel_x = frame.shape[1] - 420
     panel_y = 40
-    panel_width = 380
+    panel_width = 400
     alpha = 0.85
 
-    # ================== STATE 1 : CORRECT (IN SCOPE) ==================
+    # ================== CORRECT ==================
 
     if stable_count >= CONFIRM_FRAMES and box_data and stable_name in vegetable_info:
 
@@ -289,8 +284,7 @@ while True:
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
             y_text += 25
 
-
-    # ================== STATE 2 : OUT OF SCOPE ==================
+    # ================== ERROR ==================
 
     elif detected_frames >= CONFIRM_FRAMES and not (
 
@@ -319,8 +313,7 @@ while True:
                     (panel_x + 20, panel_y + 70),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
 
-
-    # ================== STATE 3 : NO DETECTION (WAITING) ==================
+    # ================== SCANNING ==================
 
     else:
 
@@ -346,8 +339,8 @@ while True:
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
 
     cv2.imshow("Smart Scan",frame)
-    # cv2.imshow("Green",mask_green)
-    cv2.imshow("Red",mask_red)
+    cv2.imshow("Green",mask_green)
+    # cv2.imshow("Red",mask_red)
     # cv2.imshow("Orange",mask_orange)
     # cv2.imshow("Brown",mask_potato)
 

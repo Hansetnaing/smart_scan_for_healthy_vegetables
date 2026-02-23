@@ -130,9 +130,15 @@ while True:
         detected_name = ""
         box_data = (x_, y_, w_, h_)
 
-        if 0.70 < ar < 1.45 and 0.70 < cir < 0.85 and sol > 0.85 and thickness > 0.70:
-            detected = True
+        if (
+                0.75 < ar < 1.45 and
+                cir > 0.72 and
+                sol > 0.85 and
+                thickness > 0.75 and
+                area > 20000
+        ):
             detected_name = "Potato"
+            print("Ar", ar, "Cir", cir, "Sol", sol, "Sharp", sharp, "Think", thickness)
             box_data = (x_,y_,w_,h_)
 
     # ------------------ RED ------------------
@@ -197,11 +203,16 @@ while True:
                 detected_name = "Ladyfinger"
 
             # Cucumber
-            elif 1 < ar < 4.5 and 0.5 < thickness < 0.7    and sol > 0.92:
+            elif (
+                    2.2 < ar < 3.5 and
+                    0.45 < cir < 0.65 and
+                    0.65 < thickness < 0.9 and
+                    sol > 0.93
+            ):
                 detected_name = "Cucumber"
 
             # Lime
-            elif 0.8 < ar < 1.3 and cir > 0.55 and sol > 0.85:
+            elif 0.8 < ar < 1.3 and 0.55 < cir < 0.78 and sol > 0.9:
                 detected_name = "Lime"
 
             print("Detected:", detected_name)
@@ -341,7 +352,7 @@ while True:
     cv2.imshow("Smart Scan",frame)
     cv2.imshow("Green",mask_green)
     # cv2.imshow("Red",mask_red)
-    # cv2.imshow("Orange",mask_orange)
+    cv2.imshow("Orange",mask_orange)
     # cv2.imshow("Brown",mask_potato)
 
     if cv2.waitKey(1)&0xFF==ord('q'):

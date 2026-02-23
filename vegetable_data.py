@@ -10,7 +10,7 @@ vegetable_info = {
     },
     "Tomato": {
         "calories": "18 kcal",
-        "nutrient": "Vitamin C,Vitamin K,Potassium,Lycopene",
+        "nutrient": "Vitamin C,Vitamin K,Potassium",
         "benefit1": "Rich in antioxidants",
         "benefit2": "Supports heart health",
         "benefit3": "Promotes healthy skin",
@@ -19,7 +19,7 @@ vegetable_info = {
     },
     "Carrot": {
         "calories": "41 kcal",
-        "nutrient": "Vitamin A,Vitamin K,Beta-carotene,Fiber",
+        "nutrient": "Vitamin A,Vitamin K,Fiber",
         "benefit1": "Improves vision and eye health",
         "benefit2": "Supports immune system",
         "benefit3": "Promotes healthy skin",
@@ -46,7 +46,7 @@ vegetable_info = {
     },
     "Ladyfinger": {
         "calories": "33 kcal",
-        "nutrient": "Vitamin C,Vitamin K,Folate,Fiber,Magnesium",
+        "nutrient": "Vitamin C,Vitamin K,Folate,Magnesium",
         "benefit1": "Supports healthy digestion due to high fiber",
         "benefit2": "Helps regulate blood sugar levels",
         "benefit3": "Boosts immune system",

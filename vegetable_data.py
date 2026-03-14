@@ -28,7 +28,7 @@ vegetable_info = {
     },
     "Cucumber": {
         "calories": "16 kcal",
-        "nutrient": "Vitamin K,Vitamin C,Potassium,Fiber",
+        "nutrient": "Vitamin K/C,Potassium,Fiber",
         "benefit1": "Keeps the body hydrated",
         "benefit2": "Promotes healthy skin",
         "benefit3": "Aids digestion",

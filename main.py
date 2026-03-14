@@ -205,8 +205,9 @@ while True:
             # Cucumber
             elif (
                     2.2 < ar < 3.5 and
-                    0.45 < cir < 0.65 and
-                    0.65 < thickness < 0.9 and
+                    cir >= 0.4 and
+                    sharp >= 1 and
+                    0.4 < thickness < 0.9 and
                     sol > 0.93
             ):
                 detected_name = "Cucumber"
@@ -327,7 +328,6 @@ while True:
     # ================== SCANNING ==================
 
     else:
-
         panel_height = 90
         overlay = frame.copy()
 
@@ -350,9 +350,9 @@ while True:
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
 
     cv2.imshow("Smart Scan",frame)
-    cv2.imshow("Green",mask_green)
+    # cv2.imshow("Green",mask_green)
     # cv2.imshow("Red",mask_red)
-    cv2.imshow("Orange",mask_orange)
+    # cv2.imshow("Orange",mask_orange)
     # cv2.imshow("Brown",mask_potato)
 
     if cv2.waitKey(1)&0xFF==ord('q'):
